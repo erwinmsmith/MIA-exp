@@ -1,0 +1,68 @@
+{
+  "version": 11,
+  "traceEvents": true,
+  "memoryUpdates": "off",
+  "delegation": {
+    "enabled": true,
+    "mode": "auto",
+    "maxChildrenPerParent": 8,
+    "maxDepth": 5,
+    "maxTotalAgentsPerTurn": 32,
+    "rootSteps": {
+      "enabled": true,
+      "maxStepsPerTurn": 100,
+      "maxDelegationRounds": 64,
+      "reassessAfterDelegation": true,
+      "maxWallClockMs": 5400000,
+      "maxStalledIterations": 5,
+      "persistEveryStep": true
+    }
+  },
+  "context": {
+    "sessionWindowTurns": 30,
+    "maxContextTokens": 32000,
+    "includeToolResults": "summary",
+    "includeSubagentReports": "full",
+    "includePrivateMemory": true,
+    "includePublicMemory": true
+  },
+  "budgetMarket": {
+    "mode": "unlimited",
+    "defaultRequestsByArchetype": {
+      "root": 200000,
+      "researcher": 120000,
+      "critic": 80000,
+      "planner": 80000,
+      "coder": 200000,
+      "summarizer": 64000,
+      "tester": 120000,
+      "custom": 120000,
+      "team_synthesis": 80000
+    }
+  },
+  "tools": {
+    "approval": {
+      "readOnly": "auto",
+      "write": "auto",
+      "execute": "auto",
+      "overrides": {}
+    },
+    "shell": {
+      "mode": "unrestricted",
+      "shell": "/bin/sh",
+      "defaultTimeoutMs": 120000,
+      "maxTimeoutMs": 900000,
+      "defaultMaxOutputBytes": 120000,
+      "maxCallsPerAgent": 500
+    },
+    "executionLoop": {
+      "enabled": true,
+      "maxRounds": 500,
+      "maxCallsPerRun": 500,
+      "maxConsecutiveFailures": 8,
+      "maxWallClockMs": 5400000,
+      "maxFetchesAfterSearch": 4,
+      "llmReplanning": true
+    }
+  }
+}

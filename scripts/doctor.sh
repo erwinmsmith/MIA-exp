@@ -1,0 +1,45 @@
+#!/usr/bin/env bash
+set -uo pipefail
+
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$repo_root"
+failures=0
+
+ok() { printf 'ok   %s\n' "$1"; }
+warn() { printf 'warn %s\n' "$1"; }
+fail() { printf 'fail %s\n' "$1"; failures=$((failures + 1)); }
+
+if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then ok "MIA-exp Git repository"; else fail "MIA-exp is not a Git repository"; fi
+if git -C core/Roy rev-parse --is-inside-work-tree >/dev/null 2>&1; then ok "Roy submodule"; else fail "Roy submodule is missing"; fi
+if git -C benchmarks/LHTB rev-parse --is-inside-work-tree >/dev/null 2>&1; then ok "LHTB submodule"; else fail "LHTB submodule is missing"; fi
+
+for command_name in node npm uv python3 docker; do
+  if command -v "$command_name" >/dev/null 2>&1; then ok "$command_name available"; else fail "$command_name unavailable"; fi
+done
+if git lfs version >/dev/null 2>&1; then ok "Git LFS available"; else fail "Git LFS unavailable"; fi
+
+node_major="$(node -p 'Number(process.versions.node.split(".")[0])' 2>/dev/null || printf 0)"
+if (( node_major >= 20 )); then ok "Node.js >= 20"; else fail "Node.js 20+ required"; fi
+
+if docker info >/dev/null 2>&1; then
+  ok "Docker daemon running"
+else
+  fail "Docker daemon is not running"
+fi
+
+if [[ -x .venv/bin/harbor ]]; then ok "LHTB Harbor installed in .venv"; else fail "Harbor missing; run make bootstrap"; fi
+if [[ -d core/Roy/node_modules ]]; then ok "Roy dependencies installed"; else fail "Roy dependencies missing; run make bootstrap"; fi
+if [[ -f artifacts/roy-run.mjs ]]; then ok "Roy container bundle built"; else fail "Roy bundle missing; run make bundle"; fi
+if [[ -f artifacts/node-v20.20.2-linux-x64.tar.gz ]]; then ok "Linux Node runtime cached"; else fail "Node runtime missing; run make bootstrap"; fi
+
+if [[ -n "${OPENAI_API_KEY:-}${ANTHROPIC_API_KEY:-}${DEEPSEEK_API_KEY:-}" ]]; then
+  ok "Roy model credential present"
+else
+  warn "no Roy model credential; offline/oracle smoke works, live Roy tasks do not"
+fi
+
+if (( failures > 0 )); then
+  printf '\nDoctor found %d blocking issue(s).\n' "$failures" >&2
+  exit 1
+fi
+printf '\nEnvironment is ready.\n'

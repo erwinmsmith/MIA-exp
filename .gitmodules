@@ -1,0 +1,7 @@
+[submodule "core/Roy"]
+	path = core/Roy
+	url = https://github.com/erwinmsmith/Roy.git
+[submodule "benchmarks/LHTB"]
+	path = benchmarks/LHTB
+	url = https://github.com/zli12321/LHTB.git
+	shallow = true

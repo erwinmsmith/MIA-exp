@@ -1,0 +1,12 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "mia-exp"
+version = "0.1.0"
+description = "Experiment harness and benchmark adapters for Roy"
+requires-python = ">=3.11"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/mia_exp"]
