@@ -1,6 +1,6 @@
 SHELL := /bin/bash
 
-.PHONY: bootstrap bundle doctor repo-status check smoke-roy smoke-roy-container smoke-harbor smoke-lhtb
+.PHONY: bootstrap bundle doctor repo-status check smoke-roy smoke-roy-container smoke-harbor smoke-lhtb run-lhtb-roy
 
 bootstrap:
 	./scripts/bootstrap.sh
@@ -28,3 +28,6 @@ smoke-harbor:
 
 smoke-lhtb:
 	./scripts/smoke-lhtb.sh
+
+run-lhtb-roy:
+	./scripts/run-lhtb-roy.sh

@@ -40,8 +40,7 @@ Run the one-task sample after selecting the model in
 
 ```bash
 export OPENAI_API_KEY=...
-export DOCKER_DEFAULT_PLATFORM=linux/amd64
-.venv/bin/harbor run -c experiments/lhtb/configs/roy_smoke.yaml
+make run-lhtb-roy
 ```
 
 Artifacts are written below `jobs/<job>/<trial>/agent/`:

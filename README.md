@@ -50,6 +50,7 @@ make smoke-roy-container # Linux amd64 容器内启动 Roy bundle
 make smoke-harbor    # Harbor CLI 和 LHTB 配置可读
 make smoke-lhtb      # Docker 中运行 LHTB oracle smoke（不需要模型 API key）
 make check           # 运行不消耗模型额度的本地检查
+make run-lhtb-roy    # 使用已配置的模型凭据运行一项真实 Roy/LHTB 任务
 ```
 
 真实 Roy 任务还需要设置模型 provider 的环境变量，例如
