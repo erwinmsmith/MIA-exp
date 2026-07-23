@@ -15,12 +15,8 @@ from harbor.models.agent.context import AgentContext
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 DEFAULT_BUNDLE = REPO_ROOT / "artifacts" / "roy-run.mjs"
-DEFAULT_NODE_ARCHIVE = (
-    REPO_ROOT / "artifacts" / "node-v20.20.2-linux-x64.tar.gz"
-)
-DEFAULT_POLICY = (
-    REPO_ROOT / "experiments" / "lhtb" / "roy-workspace-config.json"
-)
+DEFAULT_NODE_ARCHIVE = REPO_ROOT / "artifacts" / "node-v20.20.2-linux-x64.tar.gz"
+DEFAULT_POLICY = REPO_ROOT / "experiments" / "lhtb" / "roy-workspace-config.json"
 PASSTHROUGH_ENV = (
     "OPENAI_API_KEY",
     "OPENAI_BASE_URL",
@@ -71,9 +67,7 @@ class RoyLHTBAgent(BaseAgent):
         self.timeout_sec = timeout_sec
         self.token_budget = token_budget
         self.extra_env = {
-            key: value
-            for key in PASSTHROUGH_ENV
-            if (value := os.environ.get(key))
+            key: value for key in PASSTHROUGH_ENV if (value := os.environ.get(key))
         }
         if extra_env:
             self.extra_env.update(extra_env)
@@ -216,12 +210,10 @@ class RoyLHTBAgent(BaseAgent):
             context.n_output_tokens = usage.get("outputTokens")
             context.n_cache_tokens = usage.get("cachedInputTokens")
             context.cost_usd = usage.get("estimatedCostUsd")
-            metadata["correlation_id"] = artifact.get("result", {}).get(
-                "correlationId"
+            metadata["correlation_id"] = artifact.get("result", {}).get("correlationId")
+            metadata["execution_tree_status"] = (
+                artifact.get("result", {}).get("executionTree", {}).get("status")
             )
-            metadata["execution_tree_status"] = artifact.get("result", {}).get(
-                "executionTree", {}
-            ).get("status")
         context.metadata = {**(context.metadata or {}), **metadata}
 
         if execution.return_code != 0:

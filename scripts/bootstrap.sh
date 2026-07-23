@@ -25,7 +25,19 @@ npm --prefix core/Roy ci
 if [[ ! -d .venv ]]; then
   uv venv --python 3.12 .venv
 fi
-uv pip install --python .venv/bin/python -e benchmarks/LHTB/harbor
+export UV_HTTP_TIMEOUT="${UV_HTTP_TIMEOUT:-300}"
+export UV_HTTP_RETRIES="${UV_HTTP_RETRIES:-10}"
+# Harbor's current LiteLLM resolution builds through maturin but omits these
+# build requirements from its source distribution metadata.
+uv pip install \
+  --python .venv/bin/python \
+  "uv-build>=0.8.4,<0.9.0" \
+  maturin \
+  puccinialin
+uv pip install \
+  --python .venv/bin/python \
+  --no-build-isolation \
+  -e benchmarks/LHTB/harbor
 uv pip install --python .venv/bin/python -e .
 
 echo "Bootstrap complete. Run: make doctor && make check"
