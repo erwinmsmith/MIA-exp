@@ -27,6 +27,7 @@ PASSTHROUGH_ENV = (
     "DEEPSEEK_ANTHROPIC_BASE_URL",
     "OPENROUTER_API_KEY",
     "BRAVE_SEARCH_API_KEY",
+    "DEFAULT_MODEL",
 )
 
 
@@ -137,7 +138,7 @@ class RoyLHTBAgent(BaseAgent):
         if "OPENROUTER_API_KEY" in runtime_env:
             runtime_env.setdefault("OPENAI_API_KEY", runtime_env["OPENROUTER_API_KEY"])
             runtime_env.setdefault("OPENAI_BASE_URL", "https://openrouter.ai/api/v1")
-        if self.model_name:
+        if self.model_name and "DEFAULT_MODEL" not in runtime_env:
             runtime_env["DEFAULT_MODEL"] = self.model_name.split("/", 1)[-1]
         runtime_env["LOG_LEVEL"] = "error"
         return runtime_env
@@ -184,8 +185,12 @@ class RoyLHTBAgent(BaseAgent):
         )
 
         local_result = self.logs_dir / f"roy-run-{round_id}.json"
+        result_download_error: Exception | None = None
         try:
-            await environment.download_file(remote_result, local_result)
+            try:
+                await environment.download_file(remote_result, local_result)
+            except Exception as error:
+                result_download_error = error
         finally:
             try:
                 await environment.download_dir(
@@ -202,6 +207,9 @@ class RoyLHTBAgent(BaseAgent):
             "stderr_tail": (execution.stderr or "")[-4000:],
             "result_path": str(local_result),
             "state_path": str(self.logs_dir / f"roy-state-{round_id}"),
+            "result_download_error": (
+                str(result_download_error) if result_download_error else None
+            ),
         }
         if local_result.is_file():
             artifact = json.loads(local_result.read_text(encoding="utf-8"))
@@ -220,4 +228,9 @@ class RoyLHTBAgent(BaseAgent):
             raise RuntimeError(
                 "Roy exited with code "
                 f"{execution.return_code}: {execution.stderr or execution.stdout}"
+            )
+        if result_download_error:
+            raise RuntimeError(
+                "Roy exited without a downloadable JSON run artifact: "
+                f"{result_download_error}"
             )

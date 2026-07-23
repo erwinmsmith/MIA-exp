@@ -5,6 +5,13 @@ repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$repo_root"
 failures=0
 
+if [[ -f "$repo_root/.env" ]]; then
+  set -a
+  # shellcheck disable=SC1091
+  source "$repo_root/.env"
+  set +a
+fi
+
 ok() { printf 'ok   %s\n' "$1"; }
 warn() { printf 'warn %s\n' "$1"; }
 fail() { printf 'fail %s\n' "$1"; failures=$((failures + 1)); }
