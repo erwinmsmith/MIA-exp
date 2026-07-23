@@ -1,6 +1,6 @@
 SHELL := /bin/bash
 
-.PHONY: bootstrap bundle doctor repo-status check smoke-roy smoke-roy-container smoke-harbor smoke-lhtb run-lhtb-roy
+.PHONY: bootstrap bundle doctor repo-status check prepare-lhtb-images smoke-roy smoke-roy-container smoke-harbor smoke-lhtb run-lhtb-roy
 
 bootstrap:
 	./scripts/bootstrap.sh
@@ -13,6 +13,9 @@ doctor:
 
 repo-status:
 	./scripts/repo-status.sh
+
+prepare-lhtb-images:
+	./scripts/prepare-lhtb-images.sh
 
 check: smoke-roy smoke-harbor
 	./scripts/repo-status.sh --require-clean-submodules

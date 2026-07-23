@@ -65,6 +65,7 @@ keys. The guarded LHTB launcher loads the root `.env` automatically.
 make smoke-roy           # Roy tests, type checks, build, and one-shot CLI
 make smoke-roy-container # Start the Roy bundle in a Linux amd64 container
 make smoke-harbor        # Import Harbor and the Roy/LHTB adapter
+make prepare-lhtb-images # Pull and validate official task images and digests
 make smoke-lhtb          # Run LHTB's Docker oracle smoke without model tokens
 make check               # Run local checks that do not consume model tokens
 make run-lhtb-roy        # Run one live Roy/LHTB task with local credentials

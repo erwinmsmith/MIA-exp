@@ -1,5 +1,5 @@
 {
-  "version": 11,
+  "version": 12,
   "traceEvents": true,
   "memoryUpdates": "off",
   "delegation": {
@@ -7,15 +7,19 @@
     "mode": "auto",
     "maxChildrenPerParent": 8,
     "maxDepth": 5,
-    "maxTotalAgentsPerTurn": 32,
+    "maxTotalAgentsPerTurn": 24,
     "rootSteps": {
       "enabled": true,
-      "maxStepsPerTurn": 100,
-      "maxDelegationRounds": 64,
+      "maxStepsPerTurn": 24,
+      "maxDelegationRounds": 12,
       "reassessAfterDelegation": true,
       "maxWallClockMs": 5400000,
-      "maxStalledIterations": 5,
-      "persistEveryStep": true
+      "maxStalledIterations": 4,
+      "persistEveryStep": true,
+      "cacheExecutionKnowledge": true,
+      "teamFirstLongHorizon": true,
+      "maxCachedSteps": 300,
+      "maxFeedbackItemsInPrompt": 32
     }
   },
   "context": {
@@ -57,8 +61,8 @@
     },
     "executionLoop": {
       "enabled": true,
-      "maxRounds": 500,
-      "maxCallsPerRun": 500,
+      "maxRounds": 48,
+      "maxCallsPerRun": 80,
       "maxConsecutiveFailures": 8,
       "maxWallClockMs": 5400000,
       "maxFetchesAfterSearch": 4,

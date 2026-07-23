@@ -37,27 +37,15 @@ if ! docker info >/dev/null 2>&1; then
   exit 1
 fi
 
-lhtb_image="${LHTB_ROY_IMAGE:-zli12321/lhtb-langchain-version-migration:20260615}"
-if ! docker image inspect "$lhtb_image" >/dev/null 2>&1; then
-  pull_attempts="${LHTB_PULL_ATTEMPTS:-10}"
-  if [[ ! "$pull_attempts" =~ ^[1-9][0-9]*$ ]]; then
-    echo "error: LHTB_PULL_ATTEMPTS must be a positive integer" >&2
-    exit 1
-  fi
-  image_ready=0
-  for ((attempt = 1; attempt <= pull_attempts; attempt += 1)); do
-    if docker pull --platform "$DOCKER_DEFAULT_PLATFORM" "$lhtb_image"; then
-      image_ready=1
-      break
-    fi
-    echo "warning: image pull attempt $attempt/$pull_attempts failed for $lhtb_image" >&2
-  done
-  if [[ "$image_ready" != "1" ]]; then
-    echo "error: could not pull $lhtb_image after $pull_attempts attempts" >&2
-    exit 1
-  fi
+IFS=',' read -r -a lhtb_tasks <<< "${LHTB_ROY_TASKS:-langchain-version-migration}"
+"$repo_root/scripts/prepare-lhtb-images.sh" "${lhtb_tasks[@]}"
+
+roy_config="${LHTB_ROY_CONFIG:-$repo_root/experiments/lhtb/configs/roy_smoke.yaml}"
+if [[ ! -f "$roy_config" ]]; then
+  echo "error: Roy LHTB config does not exist: $roy_config" >&2
+  exit 1
 fi
 
 exec "$repo_root/.venv/bin/harbor" run \
-  -c "$repo_root/experiments/lhtb/configs/roy_smoke.yaml" \
+  -c "$roy_config" \
   "$@"

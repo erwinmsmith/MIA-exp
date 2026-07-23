@@ -9,6 +9,7 @@ upstream task definitions and modified Harbor runtime remain in
 ```bash
 make bootstrap
 make doctor
+make prepare-lhtb-images
 make smoke-roy-container
 make smoke-lhtb
 ```
@@ -16,8 +17,11 @@ make smoke-lhtb
 The oracle smoke proves Docker image build, task setup, verifier execution, and the
 LHTB Harbor patch without spending model tokens.
 
-For public smoke images, the script uses an isolated anonymous Docker client
-config so a stale desktop credential helper cannot block pulls. Set
+Image preparation reads each task's declared `environment.docker_image`, pulls the
+official `linux/amd64` image, requires a registry digest, and probes `/app` and
+Python. It rejects locally reconstructed images without a registry digest. The
+scripts use an isolated anonymous Docker client config so a stale desktop credential
+helper cannot block pulls. Set
 `MIA_DOCKER_CONFIG=/path/to/config` to use a different Docker client config.
 
 ## Roy agent run
@@ -43,10 +47,27 @@ export OPENAI_API_KEY=...
 make run-lhtb-roy
 ```
 
+Run all currently checked-out LHTB tasks sequentially with the multi-task config:
+
+```bash
+LHTB_ROY_CONFIG="$PWD/experiments/lhtb/configs/roy_multi.yaml" \
+LHTB_ROY_TASKS="langchain-version-migration,great-expectations-audit,document-table-layout-reconstruction" \
+make run-lhtb-roy
+```
+
+`LHTB_ROY_CONFIG` selects the Harbor config and `LHTB_ROY_TASKS` is the
+comma-separated image-preparation set. Raw jobs remain ignored; publish only
+deliberately summarized, secret-free results.
+
+Summarized probe reports live under [`reports/`](reports/). They distinguish
+runtime diagnostics from benchmark passes and do not publish raw traces or
+credentials.
+
 Artifacts are written below `jobs/<job>/<trial>/agent/`:
 
 - `roy-run-<round>.json`: result, execution tree, events, messages, and usage;
-- `roy-state-<round>/`: persisted memory, full traces, execution trees, and caches;
+- `roy-state-<round>/`: persisted memory, full traces, execution trees, and
+  execution knowledge (step/path/agent/team/feedback) caches;
 - `instruction-<round>.txt`: exact instruction supplied to Roy.
 
 The concrete Harbor config and adapter remain in this outer repository.
