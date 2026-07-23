@@ -30,7 +30,7 @@ are not part of the public repository.
 
 ## Setup
 
-Prerequisites: Git, Node.js 20+, Python 3.12, `uv`, Git LFS, and a running Docker
+Prerequisites: Git, Node.js 20+, Python 3.11+, `uv`, Git LFS, and a running Docker
 daemon.
 
 ```bash
