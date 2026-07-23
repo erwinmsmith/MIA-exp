@@ -9,6 +9,7 @@ upstream task definitions and modified Harbor runtime remain in
 ```bash
 make bootstrap
 make doctor
+make smoke-roy-container
 make smoke-lhtb
 ```
 

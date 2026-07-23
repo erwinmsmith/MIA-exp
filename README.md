@@ -46,6 +46,7 @@ MIA_SKIP_LHTB_LFS=1 make bootstrap
 
 ```bash
 make smoke-roy       # Roy 构建、测试、one-shot CLI 可用性
+make smoke-roy-container # Linux amd64 容器内启动 Roy bundle
 make smoke-harbor    # Harbor CLI 和 LHTB 配置可读
 make smoke-lhtb      # Docker 中运行 LHTB oracle smoke（不需要模型 API key）
 make check           # 运行不消耗模型额度的本地检查
