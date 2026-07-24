@@ -31,8 +31,9 @@ of 103,679 characters and a maximum of 177,818 characters.
 
 ## Implemented redesign
 
-Roy core commits `ad0fbf1`, `fa78f99`, `75427af`, `b23408c`, `5cad652`, and
-`a166a1c` make execution state, rather than context limits, the control plane:
+Roy core commits `ad0fbf1`, `fa78f99`, `75427af`, `b23408c`, `5cad652`,
+`a166a1c`, and `5a06952` make execution state, rather than context limits, the
+control plane:
 
 - prompt slots are rendered once; Runtime adds only missing fallback sections;
 - irrelevant zero-overlap execution-cache records are excluded;
@@ -70,7 +71,11 @@ Roy core commits `ad0fbf1`, `fa78f99`, `75427af`, `b23408c`, `5cad652`, and
 - tool planning carries a causal observation frontier: the latest result retains
   repair detail, while historical commands, errors, and outputs are compact
   summaries. The stable task head and newest feedback tail are retained instead
-  of replaying the entire growing prompt and every old log on every tool round.
+  of replaying the entire growing prompt and every old log on every tool round;
+- deterministic inspection plans use path-scoped cache invalidation across root
+  closure attempts. A cached config read survives an unrelated source edit, a
+  source read is invalidated by an edit to that source, and a directory listing
+  is not discarded by an in-place replacement.
 
 The MIA-exp adapter now sends changed verifier artifacts, including Harbor's full
 `pytest.log`, once. An unchanged artifact is represented by a SHA-256 fingerprint
@@ -155,3 +160,11 @@ verification between repairs and replaying large historical command outputs.
 That measurement directly motivated `5cad652` and `a166a1c` plus the local
 verifier handoff in the adapter. No passing claim is made for those revisions
 until a fresh Roy run produces a successful official verifier artifact.
+
+The first `a166a1c` live probe was stopped after about four minutes when root
+attempts four and five still repeated deterministic workspace listing and config
+reads. The within-loop causal frontier was working, but Runtime had only applied
+cross-attempt caching to failed verification commands. Core `5a06952` generalizes
+that cache to path-scoped inspection evidence. This probe was stopped to avoid
+spending the multi-hour envelope on a known replay defect and is not a benchmark
+result.
