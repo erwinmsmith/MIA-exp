@@ -8,5 +8,8 @@ version = "0.1.0"
 description = "Experiment harness and benchmark adapters for Roy"
 requires-python = ">=3.11"
 
+[project.scripts]
+mia-bench = "mia_exp.cli:main"
+
 [tool.hatch.build.targets.wheel]
 packages = ["src/mia_exp"]

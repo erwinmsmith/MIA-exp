@@ -1,0 +1,111 @@
+{
+  "version": 12,
+  "traceEvents": true,
+  "memoryUpdates": "suggest",
+  "delegation": {
+    "enabled": true,
+    "mode": "auto",
+    "maxChildrenPerParent": 6,
+    "maxDepth": 4,
+    "maxTotalAgentsPerTurn": 16,
+    "allowCustomAgents": true,
+    "budgetAware": true,
+    "rootSteps": {
+      "enabled": true,
+      "maxStepsPerTurn": 12,
+      "maxDelegationRounds": 8,
+      "reassessAfterDelegation": true,
+      "maxWallClockMs": 900000,
+      "maxStalledIterations": 2,
+      "persistEveryStep": true,
+      "cacheExecutionKnowledge": true,
+      "teamFirstLongHorizon": true,
+      "maxCachedSteps": 200,
+      "maxFeedbackItemsInPrompt": 24
+    }
+  },
+  "tom": {
+    "enabled": true,
+    "autoCompleteGaps": true,
+    "maxAgentsPerDecision": 4,
+    "minimumCoverage": 0.6,
+    "enforceMinimumCoverage": false,
+    "requireExistenceReason": true,
+    "higherOrderForMultiplePerspectives": true
+  },
+  "communication": {
+    "defaultProtocol": "tom",
+    "allowMessageOverride": true,
+    "traceWindowSize": 300,
+    "includeCompletedMessages": true
+  },
+  "agents": {
+    "defaultToolsByArchetype": {
+      "researcher": [],
+      "critic": [],
+      "planner": [],
+      "coder": [],
+      "summarizer": [],
+      "tester": [],
+      "custom": []
+    },
+    "defaultSkillsByArchetype": {
+      "researcher": ["delegate_to_subagent"],
+      "critic": ["delegate_to_subagent"],
+      "planner": ["delegate_to_subagent"],
+      "coder": ["delegate_to_subagent"],
+      "summarizer": [],
+      "tester": ["delegate_to_subagent"],
+      "custom": ["delegate_to_subagent"]
+    }
+  },
+  "context": {
+    "sessionWindowTurns": 20,
+    "maxContextTokens": 24000,
+    "includeToolResults": "none",
+    "includeSubagentReports": "full",
+    "includePrivateMemory": true,
+    "includePublicMemory": true
+  },
+  "budgetMarket": {
+    "enabled": true,
+    "mode": "market",
+    "minimumGrantTokens": 512,
+    "accountingDimension": "total_tokens",
+    "rebalanceOnRequest": true,
+    "defaultPriority": "medium",
+    "defaultRequestsByArchetype": {
+      "root": 10000,
+      "researcher": 5000,
+      "critic": 5000,
+      "planner": 5000,
+      "coder": 5000,
+      "summarizer": 4000,
+      "tester": 5000,
+      "custom": 5000,
+      "team_synthesis": 6000
+    }
+  },
+  "tools": {
+    "approval": {
+      "readOnly": "deny",
+      "write": "deny",
+      "execute": "deny",
+      "overrides": {}
+    },
+    "web": {
+      "enabled": false
+    },
+    "executionLoop": {
+      "enabled": false
+    }
+  },
+  "teams": {
+    "enabled": true,
+    "createForMultipleAgents": true,
+    "maxMembersPerTeam": 6,
+    "executionMode": "parallel",
+    "failureMode": "best_effort",
+    "maxConcurrency": 4
+  }
+}

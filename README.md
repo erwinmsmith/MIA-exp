@@ -5,8 +5,12 @@ organizes reproducible experiments across multiple benchmarks and evaluates
 [Roy](https://github.com/erwinmsmith/Roy) capabilities such as delegation, tool
 execution, derivation trees, and trajectories.
 
-The first supported benchmark is
-[LHTB](https://github.com/zli12321/LHTB) (Long-Horizon Terminal-Bench).
+Supported benchmark suites:
+
+- [LHTB](https://github.com/zli12321/LHTB) for long-horizon terminal work;
+- [Solo Performance Prompting](https://github.com/MikeWangWZHL/Solo-Performance-Prompting)
+  for Logic Grid Puzzle, Trivia Creative Writing (N=5/N=10), and Codenames
+  Collaborative.
 
 ## Repository boundaries
 
@@ -14,6 +18,7 @@ The first supported benchmark is
 MIA-exp/                 # Experiments, adapters, configs, and result processing
 ├── core/Roy/            # Independent submodule; benchmark-agnostic runtime only
 ├── benchmarks/LHTB/     # Independent upstream benchmark submodule; read-only
+├── benchmarks/SPP/      # Independent upstream datasets submodule; read-only
 ├── experiments/         # Benchmark adapters and experiment configurations
 ├── scripts/             # Bootstrap, validation, and launch scripts
 ├── artifacts/           # Ignored local build/runtime artifacts
@@ -48,6 +53,11 @@ default. To bootstrap only the code paths needed for local checks:
 MIA_SKIP_LHTB_LFS=1 make bootstrap
 ```
 
+The SPP upstream repository does not currently declare a software/data license.
+MIA-exp therefore pins it as a read-only submodule instead of copying its datasets
+into this repository. `make prepare-spp` downloads the pinned data and verifies the
+expected item counts and SHA-256 digests.
+
 ## Model credentials
 
 Copy the example file and fill in one supported provider locally:
@@ -67,14 +77,18 @@ make smoke-roy-container # Start the Roy bundle in a Linux amd64 container
 make smoke-harbor        # Import Harbor and the Roy/LHTB adapter
 make prepare-lhtb-images # Pull and validate official task images and digests
 make smoke-lhtb          # Run LHTB's Docker oracle smoke without model tokens
+make prepare-spp         # Download and checksum the four SPP data splits
+make smoke-spp           # Validate data, adapters, prompts, and metrics offline
 make check               # Run local checks that do not consume model tokens
 make run-lhtb-roy        # Run one live Roy/LHTB task with local credentials
+make run-spp-roy ARGS=... # See experiments/spp/README.md for direct commands
 ```
 
 ## Experiments
 
 Each benchmark adapter lives under `experiments/<benchmark>/`. See
-[`experiments/lhtb/README.md`](experiments/lhtb/README.md) for the LHTB workflow.
+[`experiments/lhtb/README.md`](experiments/lhtb/README.md) and
+[`experiments/spp/README.md`](experiments/spp/README.md) for their workflows.
 
 The LHTB adapter builds Roy as a standalone JavaScript bundle, caches a
 checksum-verified Linux x64 Node.js runtime, and uploads both into the isolated task
@@ -87,3 +101,20 @@ Every reported result should record:
 - raw Harbor job output;
 - Roy execution tree, events, messages, and trajectory;
 - verifier reward rather than the agent's self-reported completion status.
+
+## Common score contract
+
+Every adapter exposes an item-level score as `earned / possible` in `[0, 1]` and
+retains both numeric values. Runs also report `score`, `meanItemScore`,
+`exactMatchRate`, and `parseRate`. The native metric remains visible:
+
+| Benchmark | Earned | Possible |
+| --- | --- | --- |
+| LHTB | Harbor verifier reward | 1 |
+| Logic Grid Puzzle | Correct house answers | Puzzles |
+| Trivia Creative Writing | Official answer aliases mentioned | Trivia questions |
+| Codenames Collaborative | Unique target words guessed | Target words |
+
+Cross-benchmark comparisons use a macro mean of each benchmark's normalized score,
+so a larger dataset or a Trivia N=10 item cannot silently dominate another
+benchmark. Raw item records remain authoritative.

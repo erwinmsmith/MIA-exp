@@ -1,0 +1,132 @@
+{
+  "schemaVersion": 1,
+  "scoreContract": {
+    "range": [0.0, 1.0],
+    "formula": "earned / possible",
+    "requiredItemFields": [
+      "metric",
+      "earned",
+      "possible",
+      "score",
+      "exactMatch",
+      "parsed"
+    ],
+    "requiredRunFields": [
+      "score",
+      "meanItemScore",
+      "exactMatchRate",
+      "parseRate"
+    ],
+    "crossBenchmarkAggregation": "macro mean of each benchmark's normalized score"
+  },
+  "benchmarks": [
+    {
+      "id": "lhtb",
+      "suite": "lhtb",
+      "name": "Long-Horizon Terminal-Bench",
+      "adapter": "mia_exp.benchmarks.lhtb:RoyLHTBAgent",
+      "source": {
+        "url": "https://github.com/zli12321/LHTB",
+        "commit": "11c5e775a9f5a296744b7e9b9051a9d8ab88f04f"
+      },
+      "data": {
+        "path": "benchmarks/LHTB/tasks",
+        "format": "directory"
+      },
+      "primaryMetric": {
+        "name": "verifier_reward",
+        "earned": "Harbor verifier reward",
+        "possible": 1,
+        "range": [0.0, 1.0]
+      }
+    },
+    {
+      "id": "spp.logic-grid-puzzle",
+      "suite": "spp",
+      "name": "Logic Grid Puzzle",
+      "adapter": "mia_exp.benchmarks.spp",
+      "source": {
+        "url": "https://github.com/MikeWangWZHL/Solo-Performance-Prompting",
+        "commit": "619c8a0ff4205bfd39e33f0867647b40e1703b94"
+      },
+      "data": {
+        "path": "benchmarks/SPP/data/logic_grid_puzzle/logic_grid_puzzle_200.jsonl",
+        "format": "jsonl",
+        "expectedItems": 200,
+        "sha256": "5e796a1e6b983ee44bdddee122cfcbcfe454a2e96eb59d031abbe890cefeff37"
+      },
+      "primaryMetric": {
+        "name": "answer_recall",
+        "earned": "correct house-number answers",
+        "possible": "puzzles",
+        "range": [0.0, 1.0]
+      }
+    },
+    {
+      "id": "spp.trivia-creative-writing-n5",
+      "suite": "spp",
+      "name": "Trivia Creative Writing (N=5)",
+      "adapter": "mia_exp.benchmarks.spp",
+      "source": {
+        "url": "https://github.com/MikeWangWZHL/Solo-Performance-Prompting",
+        "commit": "619c8a0ff4205bfd39e33f0867647b40e1703b94"
+      },
+      "data": {
+        "path": "benchmarks/SPP/data/trivia_creative_writing/trivia_creative_writing_100_n_5.jsonl",
+        "format": "jsonl",
+        "expectedItems": 100,
+        "sha256": "0b87d6f9d4e7fee3d4d5ce8fa774e2255d486346692f7e8a451d544f233e3c1c"
+      },
+      "primaryMetric": {
+        "name": "answer_recall",
+        "earned": "trivia answers mentioned through any official alias",
+        "possible": "trivia questions",
+        "range": [0.0, 1.0]
+      }
+    },
+    {
+      "id": "spp.trivia-creative-writing-n10",
+      "suite": "spp",
+      "name": "Trivia Creative Writing (N=10)",
+      "adapter": "mia_exp.benchmarks.spp",
+      "source": {
+        "url": "https://github.com/MikeWangWZHL/Solo-Performance-Prompting",
+        "commit": "619c8a0ff4205bfd39e33f0867647b40e1703b94"
+      },
+      "data": {
+        "path": "benchmarks/SPP/data/trivia_creative_writing/trivia_creative_writing_100_n_10.jsonl",
+        "format": "jsonl",
+        "expectedItems": 100,
+        "sha256": "052ede3dfff067bbce8ac0314764555e781f7d1993f0e38626a511d58890a3f4"
+      },
+      "primaryMetric": {
+        "name": "answer_recall",
+        "earned": "trivia answers mentioned through any official alias",
+        "possible": "trivia questions",
+        "range": [0.0, 1.0]
+      }
+    },
+    {
+      "id": "spp.codenames-collaborative",
+      "suite": "spp",
+      "name": "Codenames Collaborative",
+      "adapter": "mia_exp.benchmarks.spp",
+      "source": {
+        "url": "https://github.com/MikeWangWZHL/Solo-Performance-Prompting",
+        "commit": "619c8a0ff4205bfd39e33f0867647b40e1703b94"
+      },
+      "data": {
+        "path": "benchmarks/SPP/data/codenames_collaborative/codenames_50.jsonl",
+        "format": "jsonl",
+        "expectedItems": 50,
+        "sha256": "2445d991787015be00330376447e5b0aaa6906908acb6d47869bc8fe90a8f4be"
+      },
+      "primaryMetric": {
+        "name": "target_word_recall",
+        "earned": "unique target words guessed",
+        "possible": "target words",
+        "range": [0.0, 1.0]
+      }
+    }
+  ]
+}

@@ -7,6 +7,7 @@ cd "$repo_root"
 git submodule sync --recursive
 git submodule update --init core/Roy
 git submodule update --init --depth 1 benchmarks/LHTB
+git submodule update --init benchmarks/SPP
 
 if ! command -v git-lfs >/dev/null 2>&1 && ! git lfs version >/dev/null 2>&1; then
   echo "error: Git LFS is required. Install it before bootstrapping LHTB." >&2
@@ -39,5 +40,7 @@ uv pip install \
   --no-build-isolation \
   -e benchmarks/LHTB/harbor
 uv pip install --python .venv/bin/python -e .
+
+"$repo_root/scripts/prepare-spp.sh"
 
 echo "Bootstrap complete. Run: make doctor && make check"

@@ -19,6 +19,7 @@ fail() { printf 'fail %s\n' "$1"; failures=$((failures + 1)); }
 if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then ok "MIA-exp Git repository"; else fail "MIA-exp is not a Git repository"; fi
 if git -C core/Roy rev-parse --is-inside-work-tree >/dev/null 2>&1; then ok "Roy submodule"; else fail "Roy submodule is missing"; fi
 if git -C benchmarks/LHTB rev-parse --is-inside-work-tree >/dev/null 2>&1; then ok "LHTB submodule"; else fail "LHTB submodule is missing"; fi
+if git -C benchmarks/SPP rev-parse --is-inside-work-tree >/dev/null 2>&1; then ok "SPP submodule"; else fail "SPP submodule is missing"; fi
 
 for command_name in node npm uv python3 docker; do
   if command -v "$command_name" >/dev/null 2>&1; then ok "$command_name available"; else fail "$command_name unavailable"; fi
@@ -38,6 +39,7 @@ if [[ -x .venv/bin/harbor ]]; then ok "LHTB Harbor installed in .venv"; else fai
 if [[ -d core/Roy/node_modules ]]; then ok "Roy dependencies installed"; else fail "Roy dependencies missing; run make bootstrap"; fi
 if [[ -f artifacts/roy-run.mjs ]]; then ok "Roy container bundle built"; else fail "Roy bundle missing; run make bundle"; fi
 if [[ -f artifacts/node-v20.20.2-linux-x64.tar.gz ]]; then ok "Linux Node runtime cached"; else fail "Node runtime missing; run make bootstrap"; fi
+if PYTHONPATH=src .venv/bin/python -m mia_exp.cli validate --suite spp >/dev/null 2>&1; then ok "SPP datasets verified"; else fail "SPP datasets missing or corrupt; run make prepare-spp"; fi
 
 if [[ -n "${OPENAI_API_KEY:-}${ANTHROPIC_API_KEY:-}${DEEPSEEK_API_KEY:-}" ]]; then
   ok "Roy model credential present"
