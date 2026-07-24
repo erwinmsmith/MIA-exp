@@ -81,6 +81,16 @@ def _telemetry(artifact: dict[str, Any]) -> dict[str, Any]:
         for event in events
         if isinstance(event, dict) and event.get("type") == "spawn.policy.rejected"
     ]
+    tool_errors = [
+        event
+        for event in events
+        if isinstance(event, dict) and event.get("type") == "tool.error"
+    ]
+    tool_timeouts = [
+        event
+        for event in tool_errors
+        if "timed out" in str((event.get("data") or {}).get("error", "")).lower()
+    ]
     return {
         "correlationId": result.get("correlationId"),
         "decision": (result.get("decision") or {}).get("action"),
@@ -143,6 +153,26 @@ def _telemetry(artifact: dict[str, Any]) -> dict[str, Any]:
         "executionClosureUnmet": event_counts.get(
             "root.execution.closure.unmet", 0
         ),
+        "acceptanceAuditsCompleted": event_counts.get(
+            "root.acceptance.audit.completed", 0
+        ),
+        "acceptanceAuditsUnmet": event_counts.get(
+            "root.acceptance.audit.unmet", 0
+        ),
+        "executionTimeBudgetAllocations": event_counts.get(
+            "root.execution.time_budget.allocated", 0
+        ),
+        "executionTimeBudgetExhausted": event_counts.get(
+            "root.execution.time_budget.exhausted", 0
+        ),
+        "toolIntentRecoveriesCompleted": event_counts.get(
+            "agent.output.tool_intent.recovery.completed", 0
+        ),
+        "toolIntentRecoveriesFailed": event_counts.get(
+            "agent.output.tool_intent.recovery.failed", 0
+        ),
+        "toolErrors": len(tool_errors),
+        "toolTimeouts": len(tool_timeouts),
         "outputContractRepairEvents": sum(
             count
             for name, count in event_counts.items()

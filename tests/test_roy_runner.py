@@ -55,6 +55,15 @@ class DotenvTests(unittest.TestCase):
                     {"type": "delegation.direct_decision.audit.overridden"},
                     {"type": "root.execution.attempt.completed"},
                     {"type": "root.execution.closure.unmet"},
+                    {"type": "root.acceptance.audit.completed"},
+                    {"type": "root.acceptance.audit.unmet"},
+                    {"type": "root.execution.time_budget.allocated"},
+                    {"type": "root.execution.time_budget.exhausted"},
+                    {"type": "agent.output.tool_intent.recovery.completed"},
+                    {
+                        "type": "tool.error",
+                        "data": {"error": "Command timed out after 1000ms"},
+                    },
                     {
                         "type": "spawn.policy.rejected",
                         "data": {"reason": "max_children_exceeded"},
@@ -73,6 +82,13 @@ class DotenvTests(unittest.TestCase):
         self.assertEqual(telemetry["directDecisionOverrides"], 1)
         self.assertEqual(telemetry["executionClosureAttempts"], 1)
         self.assertEqual(telemetry["executionClosureUnmet"], 1)
+        self.assertEqual(telemetry["acceptanceAuditsCompleted"], 1)
+        self.assertEqual(telemetry["acceptanceAuditsUnmet"], 1)
+        self.assertEqual(telemetry["executionTimeBudgetAllocations"], 1)
+        self.assertEqual(telemetry["executionTimeBudgetExhausted"], 1)
+        self.assertEqual(telemetry["toolIntentRecoveriesCompleted"], 1)
+        self.assertEqual(telemetry["toolErrors"], 1)
+        self.assertEqual(telemetry["toolTimeouts"], 1)
         self.assertEqual(telemetry["outputContractRepairEvents"], 2)
         self.assertEqual(telemetry["truncatedStreams"], 1)
 
