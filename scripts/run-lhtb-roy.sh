@@ -27,6 +27,10 @@ else
 fi
 export DOCKER_DEFAULT_PLATFORM="${DOCKER_DEFAULT_PLATFORM:-linux/amd64}"
 
+if [[ -n "${LHTB_ROY_BUNDLE:-}" ]]; then
+  export MIA_ROY_BUNDLE="$LHTB_ROY_BUNDLE"
+fi
+
 if [[ -z "${OPENAI_API_KEY:-}${ANTHROPIC_API_KEY:-}${DEEPSEEK_API_KEY:-}" ]]; then
   echo "error: set a supported Roy model credential before a live LHTB run" >&2
   exit 1

@@ -105,7 +105,9 @@ class RoyLHTBAgent(BaseAgent):
             model_name=model_name,
             **kwargs,
         )
-        self.bundle_path = Path(bundle_path or DEFAULT_BUNDLE).resolve()
+        self.bundle_path = Path(
+            bundle_path or os.environ.get("MIA_ROY_BUNDLE") or DEFAULT_BUNDLE
+        ).resolve()
         self.node_archive_path = Path(
             node_archive_path or DEFAULT_NODE_ARCHIVE
         ).resolve()

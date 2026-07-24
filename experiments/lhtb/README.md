@@ -59,6 +59,17 @@ make run-lhtb-roy
 comma-separated image-preparation set. Raw jobs remain ignored; publish only
 deliberately summarized, secret-free results.
 
+To compare Roy revisions without replacing the default bundle used by another
+running benchmark, build and select a versioned artifact:
+
+```bash
+./scripts/build-roy-bundle.sh "$PWD/artifacts/roy-run-a650eee.mjs"
+LHTB_ROY_BUNDLE="$PWD/artifacts/roy-run-a650eee.mjs" \
+LHTB_ROY_CONFIG="$PWD/experiments/lhtb/configs/roy_multi.yaml" \
+LHTB_ROY_TASKS="langchain-version-migration,great-expectations-audit,document-table-layout-reconstruction" \
+./scripts/run-lhtb-roy.sh --n-concurrent 3 --yes
+```
+
 Summarized probe reports live under [`reports/`](reports/). They distinguish
 runtime diagnostics from benchmark passes and do not publish raw traces or
 credentials.

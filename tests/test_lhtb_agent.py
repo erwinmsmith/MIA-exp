@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import json
+import os
 import tempfile
 import unittest
 from pathlib import Path
 from typing import Any
+from unittest.mock import patch
 
 from harbor.environments.base import ExecResult
 from harbor.models.agent.context import AgentContext
@@ -83,6 +85,17 @@ class FakeEnvironment:
 
 
 class RoyLHTBSecretInjectionTests(unittest.IsolatedAsyncioTestCase):
+    async def test_bundle_can_be_selected_without_changing_benchmark_config(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            bundle_path = Path(directory) / "roy-versioned.mjs"
+            bundle_path.write_text("// versioned bundle", encoding="utf-8")
+            with patch.dict(os.environ, {"MIA_ROY_BUNDLE": str(bundle_path)}):
+                agent = RoyLHTBAgent(logs_dir=Path(directory) / "logs")
+
+        self.assertEqual(agent.bundle_path, bundle_path.resolve())
+
     async def test_runtime_does_not_pass_credentials_in_exec_argv_or_env(self) -> None:
         secret = "test-secret-value"
         with tempfile.TemporaryDirectory() as directory:
