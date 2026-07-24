@@ -193,9 +193,23 @@ class RoyLHTBSecretInjectionTests(unittest.IsolatedAsyncioTestCase):
             instruction,
         )
         self.assertIn(
-            "python -m pytest -p no:cacheprovider -q /tests/test_outputs.py",
+            "python -m pytest -p no:cacheprovider -q "
+            ".roy/official-verifier/test_outputs.py",
             instruction,
         )
+
+    async def test_noisy_verifier_feedback_is_causally_compacted(self) -> None:
+        content = "pip setup\n" + ("Requirement already satisfied\n" * 1_000)
+        content += "ERROR final dependency failure"
+
+        compacted = RoyLHTBAgent._compact_verifier_feedback(
+            "install.log",
+            content,
+        )
+
+        self.assertLessEqual(len(compacted), 3_100)
+        self.assertIn("compacted", compacted)
+        self.assertIn("ERROR final dependency failure", compacted)
 
     async def test_continuation_uploads_checked_out_verifier_into_workspace(
         self,
@@ -241,7 +255,7 @@ class RoyLHTBSecretInjectionTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("Unchanged since the previous Roy round", second)
         self.assertIn("persisted execution ledger", second)
         self.assertIn(
-            "python /tests/grade.py",
+            "python .roy/official-verifier/grade.py",
             second,
         )
 

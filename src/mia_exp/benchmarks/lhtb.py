@@ -244,19 +244,46 @@ class RoyLHTBAgent(BaseAgent):
                     "Use the persisted execution ledger for the previously supplied details."
                 )
             else:
+                compacted = self._compact_verifier_feedback(filename, content)
                 sections.append(
-                    f"### {filename} (new or changed; sha256:{digest[:16]})\n{content}"
+                    f"### {filename} (new or changed; sha256:{digest[:16]})\n"
+                    f"{compacted}"
                 )
         return "\n\n".join(sections)
+
+    @staticmethod
+    def _compact_verifier_feedback(filename: str, content: str) -> str:
+        """Bound noisy harness logs while preserving the causal failure frontier."""
+
+        limits = {
+            "reward.txt": 512,
+            "test-stdout.txt": 8_000,
+            "pytest.log": 12_000,
+            "install.log": 3_000,
+        }
+        limit = limits.get(filename, 6_000)
+        if len(content) <= limit:
+            return content
+        head_size = min(1_000, limit // 3)
+        tail_size = max(0, limit - head_size - 120)
+        return (
+            f"{content[:head_size].rstrip()}\n"
+            f"...[compacted {len(content) - head_size - tail_size} noisy characters; "
+            "latest failure frontier follows]...\n"
+            f"{content[-tail_size:].lstrip()}"
+        )
 
     def _local_verifier_command(self) -> str | None:
         """Return the task's mounted verifier entrypoint after Harbor has exposed it."""
 
         verifier_dir = self.logs_dir.parent / "verifier"
         if (verifier_dir / "pytest.log").is_file():
-            return "python -m pytest -p no:cacheprovider -q /tests/test_outputs.py"
+            return (
+                "python -m pytest -p no:cacheprovider -q "
+                ".roy/official-verifier/test_outputs.py"
+            )
         if (verifier_dir / "test-stdout.txt").is_file():
-            return "python /tests/grade.py"
+            return "python .roy/official-verifier/grade.py"
         return None
 
     async def _mirror_official_verifier(self, environment: BaseEnvironment) -> None:
@@ -334,8 +361,8 @@ class RoyLHTBAgent(BaseAgent):
                 )
                 content += (
                     "\n\n## Required local repair verification\n\n"
-                    "Harbor has now mounted the official verifier in `/tests`. "
-                    "Its readable entrypoint is mirrored inside the workspace at "
+                    "The official verifier entrypoint is mirrored read-only inside "
+                    "the workspace at "
                     f"`{mirrored_verifier}`. Read the relevant assertions from "
                     "that exact file before making a structural rewrite. "
                     "After each concrete repair, run this command inside the task "
