@@ -88,9 +88,16 @@ def _telemetry(artifact: dict[str, Any]) -> dict[str, Any]:
     ]
     tool_timeouts = [
         event
-        for event in tool_errors
-        if "timed out" in str((event.get("data") or {}).get("error", "")).lower()
+        for event in events
+        if isinstance(event, dict) and event.get("type") == "tool.timeout"
     ]
+    if not tool_timeouts:
+        tool_timeouts = [
+            event
+            for event in tool_errors
+            if "timed out"
+            in str((event.get("data") or {}).get("error", "")).lower()
+        ]
     llm_failures = [
         event
         for event in events
@@ -99,9 +106,20 @@ def _telemetry(artifact: dict[str, Any]) -> dict[str, Any]:
     ]
     llm_request_timeouts = [
         event
-        for event in llm_failures
-        if "timed out" in str((event.get("data") or {}).get("error", "")).lower()
-        or "timeout" in str((event.get("data") or {}).get("error", "")).lower()
+        for event in events
+        if isinstance(event, dict)
+        and (
+            event.get("type") == "agent.tool_planning.timeout"
+            or (
+                event in llm_failures
+                and (
+                    "timed out"
+                    in str((event.get("data") or {}).get("error", "")).lower()
+                    or "timeout"
+                    in str((event.get("data") or {}).get("error", "")).lower()
+                )
+            )
+        )
     ]
     return {
         "correlationId": result.get("correlationId"),
@@ -186,6 +204,16 @@ def _telemetry(artifact: dict[str, Any]) -> dict[str, Any]:
         "toolErrors": len(tool_errors),
         "toolTimeouts": len(tool_timeouts),
         "llmRequestTimeouts": len(llm_request_timeouts),
+        "toolPlanningFailures": event_counts.get(
+            "agent.tool_planning.failed", 0
+        ),
+        "toolPlanningTimeouts": event_counts.get(
+            "agent.tool_planning.timeout", 0
+        ),
+        "toolDeadlineClamps": event_counts.get("tool.deadline.applied", 0),
+        "externalWallClockLimits": event_counts.get(
+            "runtime.wall_clock_limit.applied", 0
+        ),
         "llmRetryEvents": event_counts.get("llm.stream.retrying", 0)
         + event_counts.get("llm.json.retrying", 0),
         "llmRecoveryEvents": event_counts.get("llm.stream.recovered", 0)

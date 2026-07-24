@@ -64,11 +64,22 @@ class DotenvTests(unittest.TestCase):
                         "type": "tool.error",
                         "data": {"error": "Command timed out after 1000ms"},
                     },
+                    {
+                        "type": "tool.timeout",
+                        "data": {"error": "Command timed out after 1000ms"},
+                    },
+                    {"type": "tool.deadline.applied"},
                     {"type": "llm.stream.retrying"},
                     {
                         "type": "llm.stream.failed",
                         "data": {"error": "Request timed out after 120000ms"},
                     },
+                    {
+                        "type": "agent.tool_planning.timeout",
+                        "data": {"message": "Request timed out after 2000ms"},
+                    },
+                    {"type": "agent.tool_planning.failed"},
+                    {"type": "runtime.wall_clock_limit.applied"},
                     {"type": "llm.json.recovered"},
                     {"type": "team.synthesis.recovered"},
                     {
@@ -96,7 +107,11 @@ class DotenvTests(unittest.TestCase):
         self.assertEqual(telemetry["toolIntentRecoveriesCompleted"], 1)
         self.assertEqual(telemetry["toolErrors"], 1)
         self.assertEqual(telemetry["toolTimeouts"], 1)
-        self.assertEqual(telemetry["llmRequestTimeouts"], 1)
+        self.assertEqual(telemetry["llmRequestTimeouts"], 2)
+        self.assertEqual(telemetry["toolPlanningFailures"], 1)
+        self.assertEqual(telemetry["toolPlanningTimeouts"], 1)
+        self.assertEqual(telemetry["toolDeadlineClamps"], 1)
+        self.assertEqual(telemetry["externalWallClockLimits"], 1)
         self.assertEqual(telemetry["llmRetryEvents"], 1)
         self.assertEqual(telemetry["llmRecoveryEvents"], 1)
         self.assertEqual(telemetry["teamSynthesisRecoveries"], 1)
