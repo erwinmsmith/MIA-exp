@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import shlex
+import tempfile
 from pathlib import Path
 from typing import Any
 
@@ -29,6 +31,30 @@ PASSTHROUGH_ENV = (
     "BRAVE_SEARCH_API_KEY",
     "DEFAULT_MODEL",
 )
+ENV_KEY_PATTERN = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+
+
+def _write_runtime_env_file(values: dict[str, str]) -> Path:
+    """Create a short-lived 0600 shell file without exposing values in argv."""
+
+    invalid = sorted(key for key in values if not ENV_KEY_PATTERN.fullmatch(key))
+    if invalid:
+        raise ValueError(f"Invalid runtime environment key(s): {', '.join(invalid)}")
+    descriptor, raw_path = tempfile.mkstemp(prefix="mia-exp-roy-env-", suffix=".sh")
+    path = Path(raw_path)
+    try:
+        os.fchmod(descriptor, 0o600)
+        with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
+            for key, value in sorted(values.items()):
+                handle.write(f"export {key}={shlex.quote(value)}\n")
+    except Exception:
+        try:
+            os.close(descriptor)
+        except OSError:
+            pass
+        path.unlink(missing_ok=True)
+        raise
+    return path
 
 
 class RoyLHTBAgent(BaseAgent):
@@ -177,12 +203,40 @@ class RoyLHTBAgent(BaseAgent):
             f"--output {shlex.quote(remote_result)}"
             f"{budget_flag}"
         )
-        execution = await environment.exec(
-            command=command,
-            env=self._runtime_env(),
-            cwd=self.workspace,
-            timeout_sec=self.timeout_sec,
+        remote_env = f"/tmp/roy-runtime-env-{round_id}.sh"
+        local_env = _write_runtime_env_file(self._runtime_env())
+        try:
+            await environment.upload_file(local_env, remote_env)
+        finally:
+            local_env.unlink(missing_ok=True)
+        secured = await environment.exec(
+            command=f"chmod 600 {shlex.quote(remote_env)}",
+            user="root",
+            timeout_sec=30,
         )
+        if secured.return_code != 0:
+            raise RuntimeError(
+                "Could not secure Roy runtime environment file: "
+                f"{secured.stderr or secured.stdout or 'unknown chmod error'}"
+            )
+        try:
+            execution = await environment.exec(
+                command=(
+                    f"set -eu; . {shlex.quote(remote_env)}; "
+                    f"rm -f {shlex.quote(remote_env)}; exec {command}"
+                ),
+                cwd=self.workspace,
+                timeout_sec=self.timeout_sec,
+            )
+        finally:
+            try:
+                await environment.exec(
+                    command=f"rm -f {shlex.quote(remote_env)}",
+                    user="root",
+                    timeout_sec=30,
+                )
+            except Exception:
+                self.logger.warning("Could not remove the remote Roy environment file")
 
         local_result = self.logs_dir / f"roy-run-{round_id}.json"
         result_download_error: Exception | None = None
