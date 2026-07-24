@@ -34,7 +34,10 @@ class DotenvTests(unittest.TestCase):
                     "executionTree": {
                         "status": "completed",
                         "steps": [{}, {}],
-                        "nodes": [{"generation": 0}, {"generation": 2}],
+                        "nodes": [
+                            {"id": "root", "generation": 0},
+                            {"id": "agent_2", "generation": 2},
+                        ],
                     },
                     "subagents": [
                         {"agent": {"identity": {"id": "agent_1"}}},
@@ -47,6 +50,15 @@ class DotenvTests(unittest.TestCase):
                     {"type": "root.output_contract.repair.started"},
                     {"type": "root.output_contract.repair.completed"},
                     {"type": "llm.stream.truncated"},
+                    {"type": "team.capacity.reserved"},
+                    {"type": "delegation.direct_decision.audit.started"},
+                    {"type": "delegation.direct_decision.audit.overridden"},
+                    {"type": "root.execution.attempt.completed"},
+                    {"type": "root.execution.closure.unmet"},
+                    {
+                        "type": "spawn.policy.rejected",
+                        "data": {"reason": "max_children_exceeded"},
+                    },
                 ],
                 "messages": [{}, {}],
             }
@@ -55,6 +67,12 @@ class DotenvTests(unittest.TestCase):
         self.assertEqual(telemetry["derivedAgentIds"], ["agent_1"])
         self.assertEqual(telemetry["derivedTeamIds"], ["team_1"])
         self.assertEqual(telemetry["maxActorGeneration"], 2)
+        self.assertEqual(telemetry["recursiveDerivedActorIds"], ["agent_2"])
+        self.assertEqual(telemetry["teamCapacityReservations"], 1)
+        self.assertEqual(telemetry["maxChildrenRejections"], 1)
+        self.assertEqual(telemetry["directDecisionOverrides"], 1)
+        self.assertEqual(telemetry["executionClosureAttempts"], 1)
+        self.assertEqual(telemetry["executionClosureUnmet"], 1)
         self.assertEqual(telemetry["outputContractRepairEvents"], 2)
         self.assertEqual(telemetry["truncatedStreams"], 1)
 

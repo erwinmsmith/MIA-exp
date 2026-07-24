@@ -21,7 +21,9 @@
       "cacheExecutionKnowledge": true,
       "teamFirstLongHorizon": true,
       "maxCachedSteps": 200,
-      "maxFeedbackItemsInPrompt": 24
+      "maxFeedbackItemsInPrompt": 24,
+      "maxExecutionClosureAttempts": 3,
+      "directDecisionAuditMinObligations": 4
     }
   },
   "tom": {

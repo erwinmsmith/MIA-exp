@@ -109,3 +109,64 @@ At report time:
 Neither real probe passed its benchmark verifier within the deliberately reduced
 agent timeout. The probes are diagnostic evidence for generic runtime behavior;
 they are not benchmark success claims.
+
+## Capacity, recursion, and execution-closure follow-up
+
+The follow-up runtime fixes are published through Roy commit
+`761e9cabe56b2aa91a379c93af7e42b0775b6136`. They add:
+
+- atomic team-capacity reservation and release, including protection for planned
+  member slots while recursive descendants are running;
+- pre-spawn feasibility checks for actors whose requested evidence requires
+  unavailable tools, while retaining useful tool-free knowledge roles;
+- recursive delegation capability inheritance for custom team members;
+- mutation-aware root handoff, bounded root execution attempts, and a closure
+  marker when mutation is not followed by verification;
+- JSON-safe dynamic continuation and explicit telemetry for capacity, recursive
+  actors, infeasible plans, and execution closure.
+
+The official three-item oracle smoke still passed `3/3`. The richer Roy probe used
+the official `langchain-version-migration` image with a `0.12` agent timeout
+multiplier:
+
+| Evidence | Observed result |
+| --- | --- |
+| Capacity | 2 reservations and 2 releases; 0 child-capacity and 0 turn-capacity rejections |
+| Recursive derivation | Maximum generation 2; 6 second-generation actors in the persisted first phase |
+| Nested team | `Executor-2` created `Migration Team`, which ran `dep_fixer`, `answer_migrator`, and `router_migrator` |
+| Feedback | Failed or ungrounded member results were included in `team_step_cache` for later members and verifiers |
+| Root handoff | `root.execution.handoff.required` fired with `delegated_workspace_mutation_observed` |
+| Root closure work | 3 root execution attempts with filesystem reads, writes, and shell verification |
+| External retry | The LHTB verifier rejected phase 1; Harbor injected the failure and Roy began a second team/repair phase |
+
+The real recursive path was:
+
+```text
+Roy
+└── LongHorizonCheckpointTeam
+    ├── ProjectExplorer
+    ├── Executor-2
+    │   └── Migration Team
+    │       ├── dep_fixer
+    │       ├── answer_migrator
+    │       └── router_migrator
+    └── Verifier-3
+        ├── evidence researcher
+        ├── critic
+        └── executable tester
+```
+
+This closes the earlier evidence gap: second-generation subagents and a nested
+subteam now occurred in an actual benchmark container, not only in unit tests.
+The nested team also demonstrated failure propagation: incorrect assumed paths
+and unexecuted tool requests were preserved as failed-member feedback rather
+than silently treated as successful work.
+
+The benchmark task itself did not pass. Phase 1 reached the verifier but left the
+legacy `requirements.txt` declaration unchanged, so the dependency gate returned
+reward `0`. Roy consumed that verifier feedback and started a second repair phase,
+but the overall 10 minute 58 second budget ended with `AgentTimeoutError` before
+the migration could pass. This is evidence that the modify–verify–feedback–retry
+mechanism now runs end to end; it is not a benchmark-success claim. The remaining
+task-quality and delegation-policy behavior is intentionally left as an
+experimental question rather than encoded as an LHTB-specific core adaptation.

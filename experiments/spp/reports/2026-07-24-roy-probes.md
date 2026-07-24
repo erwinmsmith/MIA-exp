@@ -61,3 +61,39 @@ hint cross the session boundary.
 - Full benchmark runs should use repeated seeds and report score, exact-match
   rate, parse rate, tokens, wall time, derived agents/teams, and repair/fallback
   incidence together.
+
+## Capacity and closure follow-up
+
+The follow-up fixes are published through Roy commit
+`761e9cabe56b2aa91a379c93af7e42b0775b6136` (including its prerequisite commits
+`f25d2b1`, `8305f8b`, `697b663`, `71f4cbc`, and `79e6087`). They add team-capacity reservations,
+post-mutation verification closure, bounded closure retries, executable-plan
+preflight, direct-decision auditing for tasks with many independent obligations,
+a JSON-compatible dynamic continuation prompt, recursive team-member capability
+inheritance, and immediate root verification handoff after a delegated mutation.
+
+Post-fix single-item probes:
+
+| Probe | Score | Steps | Actual runtime structure | Capacity / closure evidence |
+| --- | ---: | ---: | --- | --- |
+| Trivia N=5 item 0 | 5/5 | 2 | 1 team, 2 members | 1 reservation, 1 release, 0 child/turn-capacity rejections |
+| Codenames item 0 | 3/4 | 2 per Guesser | 1 team, Guesser + Critic | Both tool-free semantic members returned non-empty results; 0 capacity rejections |
+| Trivia N=10 item 0 | 5/10 | 3 | 2 sequential knowledge specialists | An infeasible auto-added evidence collector was rejected before spawn; 0 capacity rejections; dynamic reassessment ran |
+
+The N=5 planner initially proposed FactFinder, StoryWriter, and StoryReviewer.
+FactFinder was preflighted out because the SPP policy deliberately exposes no web
+or filesystem tool path; the remaining two members were reserved and executed
+without the former `max_children_exceeded` failure. A later generic fix permits
+model-internal knowledge specialists while still rejecting automatically added
+actors whose task explicitly requires tool or source-file evidence.
+
+The final N=10 run no longer fell back to a one-shot root answer: it completed two
+delegation steps and a final synthesis step. Its remaining factual misses are
+model-knowledge errors under the intentionally tool-free SPP policy, not empty
+actors or capacity failures. One continuation response was non-JSON and therefore
+fell back to synthesis within the remaining limited token budget; the earlier
+provider-side HTTP 400 caused by a missing JSON cue is fixed.
+
+These probes validate root-to-team and root-to-agent behavior. Their maximum actor
+generation remains 1; second-generation runtime derivation is evaluated separately
+with the long-horizon container probe rather than claimed from these SPP samples.

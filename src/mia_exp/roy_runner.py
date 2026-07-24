@@ -71,6 +71,16 @@ def _telemetry(artifact: dict[str, Any]) -> dict[str, Any]:
         for name, count in event_counts.items()
         if "delegat" in name or "spawn" in name or "team." in name
     )
+    recursive_nodes = [
+        node
+        for node in nodes
+        if isinstance(node, dict) and int(node.get("generation", 0)) >= 2
+    ]
+    spawn_rejections = [
+        event
+        for event in events
+        if isinstance(event, dict) and event.get("type") == "spawn.policy.rejected"
+    ]
     return {
         "correlationId": result.get("correlationId"),
         "decision": (result.get("decision") or {}).get("action"),
@@ -96,11 +106,43 @@ def _telemetry(artifact: dict[str, Any]) -> dict[str, Any]:
             ),
             default=0,
         ),
+        "recursiveDerivedActors": len(recursive_nodes),
+        "recursiveDerivedActorIds": [
+            node.get("id") for node in recursive_nodes if node.get("id")
+        ],
         "messages": len(artifact.get("messages") or []),
         "events": len(events),
         "feedbackEvents": feedback_events,
         "cacheEvents": cache_events,
         "delegationEvents": delegation_events,
+        "teamCapacityReservations": event_counts.get("team.capacity.reserved", 0),
+        "teamCapacityReleases": event_counts.get("team.capacity.released", 0),
+        "maxChildrenRejections": sum(
+            1
+            for event in spawn_rejections
+            if (event.get("data") or {}).get("reason") == "max_children_exceeded"
+        ),
+        "maxTurnCapacityRejections": sum(
+            1
+            for event in spawn_rejections
+            if (event.get("data") or {}).get("reason")
+            == "max_total_agents_per_turn_exceeded"
+        ),
+        "infeasibleDelegationPlans": event_counts.get(
+            "delegation.plan.infeasible", 0
+        ),
+        "directDecisionAudits": event_counts.get(
+            "delegation.direct_decision.audit.started", 0
+        ),
+        "directDecisionOverrides": event_counts.get(
+            "delegation.direct_decision.audit.overridden", 0
+        ),
+        "executionClosureAttempts": event_counts.get(
+            "root.execution.attempt.completed", 0
+        ),
+        "executionClosureUnmet": event_counts.get(
+            "root.execution.closure.unmet", 0
+        ),
         "outputContractRepairEvents": sum(
             count
             for name, count in event_counts.items()
