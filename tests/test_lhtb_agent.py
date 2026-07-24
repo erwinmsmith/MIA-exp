@@ -158,6 +158,11 @@ class RoyLHTBSecretInjectionTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("langchain-community is unavailable", instruction)
         self.assertIn("ImportError: cannot import name 'run_audit'", instruction)
         self.assertIn("ERROR no matching distribution", instruction)
+        self.assertIn("## Required local repair verification", instruction)
+        self.assertIn(
+            "python -m pytest -p no:cacheprovider -q /tests/test_outputs.py",
+            instruction,
+        )
 
     async def test_continuation_does_not_replay_unchanged_verifier_artifacts(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -179,6 +184,10 @@ class RoyLHTBSecretInjectionTests(unittest.IsolatedAsyncioTestCase):
         self.assertNotIn(failure, second)
         self.assertIn("Unchanged since the previous Roy round", second)
         self.assertIn("persisted execution ledger", second)
+        self.assertIn(
+            "python /tests/grade.py",
+            second,
+        )
 
     async def test_continuation_passes_external_deadline_to_roy(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

@@ -100,6 +100,8 @@ Continuation rounds carry only changed official verifier artifacts. Identical
 artifacts are represented by a content fingerprint and reuse Roy's persisted
 execution ledger. Roy links the new execution path to the previous open path and
 continues modification, verification, and acceptance work without rebuilding the
-initial team.
+initial team. Once Harbor has mounted `/tests`, the adapter also supplies the
+task's actual local verifier entrypoint so repair and re-verification can close
+inside the same Roy phase.
 
 The concrete Harbor config and adapter remain in this outer repository.

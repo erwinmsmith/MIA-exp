@@ -31,8 +31,8 @@ of 103,679 characters and a maximum of 177,818 characters.
 
 ## Implemented redesign
 
-Roy core commits `ad0fbf1`, `fa78f99`, `75427af`, and `b23408c` make execution
-state, rather than context limits, the control plane:
+Roy core commits `ad0fbf1`, `fa78f99`, `75427af`, `b23408c`, `5cad652`, and
+`a166a1c` make execution state, rather than context limits, the control plane:
 
 - prompt slots are rendered once; Runtime adds only missing fallback sections;
 - irrelevant zero-overlap execution-cache records are excluded;
@@ -57,11 +57,28 @@ state, rather than context limits, the control plane:
   listing and reading files without mutation or verification;
 - task-declared shell commands are extracted from explicit shell fences and
   executed with their real exit status; a successful Python module/script CLI is
-  accepted as functional verification after mutation.
+  accepted as functional verification after mutation;
+- `fs.read` supports inclusive line ranges, and a failed command traceback is
+  deterministically converted into a bounded read around the reported source
+  line before another model repair decision;
+- an equivalent failed verification is skipped when no mutation occurred after
+  it, while the same verification is allowed immediately after a newer
+  successful mutation;
+- inline Python/Node source writers are rejected when structured file mutation
+  tools are available, avoiding shell quoting corruption without disabling
+  terminal execution;
+- tool planning carries a causal observation frontier: the latest result retains
+  repair detail, while historical commands, errors, and outputs are compact
+  summaries. The stable task head and newest feedback tail are retained instead
+  of replaying the entire growing prompt and every old log on every tool round.
 
 The MIA-exp adapter now sends changed verifier artifacts, including Harbor's full
 `pytest.log`, once. An unchanged artifact is represented by a SHA-256 fingerprint
-and resolves through the persisted execution ledger.
+and resolves through the persisted execution ledger. After Harbor has mounted the
+official tests, each continuation also declares the available `/tests` verifier
+entrypoint as a required local command. Roy can therefore repair and rerun the
+real verifier inside one phase instead of waiting for another outer continuation
+after every edit.
 
 The standard LHTB policy restores a 32K context window and expands the execution
 envelope. A separate development config provides a multi-hour completion-oriented
@@ -70,7 +87,7 @@ This configuration is diagnostic and is not an official-time benchmark result.
 
 ## Verification
 
-- Roy: 41 test files, 297 tests passed.
+- Roy: 41 test files, 304 tests passed.
 - Roy type checking, linting, and build passed.
 - Adapter: 9 unit tests passed, including delta feedback and development deadline
   behavior.
@@ -124,3 +141,17 @@ out, then repeated inspection in repair attempts. The task already supplied its
 authoritative command in a `bash` fence; generic CLI extraction and functional
 verification support were therefore added in `b23408c`. This is a reusable
 terminal-agent capability rather than an LHTB-specific command.
+
+The `b23408c` Great Expectations development run was intentionally stopped after
+seven verifier phases rather than allowed to spend the remaining multi-hour
+envelope. It did not raise `AgentTimeoutError`, reused the same persisted path in
+every continuation, and created no new team after phase one. However, reward was
+still `0.0`, and the seven Roy phases consumed 289 model calls, 2,956,552 input
+tokens (2,101,248 cached input), 130,098 output tokens, and 238 tool calls. The
+implementation progressed from an indentation error to a concrete Great
+Expectations API compatibility failure, but it was still waiting for outer
+verification between repairs and replaying large historical command outputs.
+
+That measurement directly motivated `5cad652` and `a166a1c` plus the local
+verifier handoff in the adapter. No passing claim is made for those revisions
+until a fresh Roy run produces a successful official verifier artifact.

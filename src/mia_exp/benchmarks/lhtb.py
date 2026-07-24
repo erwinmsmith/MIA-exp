@@ -223,6 +223,16 @@ class RoyLHTBAgent(BaseAgent):
                 )
         return "\n\n".join(sections)
 
+    def _local_verifier_command(self) -> str | None:
+        """Return the task's mounted verifier entrypoint after Harbor has exposed it."""
+
+        verifier_dir = self.logs_dir.parent / "verifier"
+        if (verifier_dir / "pytest.log").is_file():
+            return "python -m pytest -p no:cacheprovider -q /tests/test_outputs.py"
+        if (verifier_dir / "test-stdout.txt").is_file():
+            return "python /tests/grade.py"
+        return None
+
     def _build_instruction(self, instruction: str) -> str:
         content = (
             "This is a long-horizon terminal benchmark task. Work directly in "
@@ -245,6 +255,19 @@ class RoyLHTBAgent(BaseAgent):
                 f"{feedback}\n"
                 "</official_verifier_feedback>"
             )
+            local_verifier = self._local_verifier_command()
+            if local_verifier:
+                content += (
+                    "\n\n## Required local repair verification\n\n"
+                    "Harbor has now mounted the official verifier in `/tests`. "
+                    "After each concrete repair, run this command inside the task "
+                    "container and use its newest failures for the next repair. "
+                    "Do not wait for another outer continuation to discover whether "
+                    "the current workspace passes.\n\n"
+                    "```bash\n"
+                    f"{local_verifier}\n"
+                    "```"
+                )
         return content
 
     async def run(
