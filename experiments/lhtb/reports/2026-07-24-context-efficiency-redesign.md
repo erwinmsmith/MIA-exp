@@ -31,8 +31,8 @@ of 103,679 characters and a maximum of 177,818 characters.
 
 ## Implemented redesign
 
-Roy core commits `ad0fbf1`, `fa78f99`, and `75427af` make execution state,
-rather than context limits, the control plane:
+Roy core commits `ad0fbf1`, `fa78f99`, `75427af`, and `b23408c` make execution
+state, rather than context limits, the control plane:
 
 - prompt slots are rendered once; Runtime adds only missing fallback sections;
 - irrelevant zero-overlap execution-cache records are excluded;
@@ -54,7 +54,10 @@ rather than context limits, the control plane:
   round on additional analysis teams;
 - transformed repair prompts preserve the original workspace-mutation intent in
   the tool planner, so a resumed phase cannot satisfy the closure by repeatedly
-  listing and reading files without mutation or verification.
+  listing and reading files without mutation or verification;
+- task-declared shell commands are extracted from explicit shell fences and
+  executed with their real exit status; a successful Python module/script CLI is
+  accepted as functional verification after mutation.
 
 The MIA-exp adapter now sends changed verifier artifacts, including Harbor's full
 `pytest.log`, once. An unchanged artifact is represented by a SHA-256 fingerprint
@@ -67,7 +70,7 @@ This configuration is diagnostic and is not an official-time benchmark result.
 
 ## Verification
 
-- Roy: 41 test files, 296 tests passed.
+- Roy: 41 test files, 297 tests passed.
 - Roy type checking, linting, and build passed.
 - Adapter: 9 unit tests passed, including delta feedback and development deadline
   behavior.
@@ -113,3 +116,11 @@ The next versioned bundle must report benchmark reward, Harbor exception status,
 model-call count, input tokens, resumed-path events, actor count, and verification
 phases from complete artifacts. A passing unit or oracle smoke is not reported as
 a Roy benchmark pass.
+
+A third diagnostic phase with `75427af` reduced the first phase to 39 model calls
+and 362,747 input tokens, but still relied on the model to infer the task's
+explicit required CLI from prose. It reached Harbor verification without timing
+out, then repeated inspection in repair attempts. The task already supplied its
+authoritative command in a `bash` fence; generic CLI extraction and functional
+verification support were therefore added in `b23408c`. This is a reusable
+terminal-agent capability rather than an LHTB-specific command.
