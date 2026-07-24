@@ -86,7 +86,8 @@ inspection.
 ## Latest authoritative-path probe
 
 A final short Great Expectations probe used the complete `a2989e4` runtime and
-policy version 14. Its first phase:
+policy version 14. It ended after 7 minutes 33 seconds with reward 0 and the
+expected reduced-budget `AgentTimeoutError`. Its first phase:
 
 - wrote `src/dq_audit/cleaning.py` under the observed authoritative source root;
 - did not create the parallel `/app/dq_audit` package seen in the preceding
