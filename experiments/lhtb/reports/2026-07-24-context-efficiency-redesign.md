@@ -32,8 +32,8 @@ of 103,679 characters and a maximum of 177,818 characters.
 ## Implemented redesign
 
 Roy core commits `ad0fbf1`, `fa78f99`, `75427af`, `b23408c`, `5cad652`,
-`a166a1c`, `5a06952`, `632754e`, and `a1092ca` make execution state, rather
-than context limits, the control plane:
+`a166a1c`, `5a06952`, `632754e`, `a1092ca`, `3254e5e`, and `424c3dc` make
+execution state, rather than context limits, the control plane:
 
 - prompt slots are rendered once; Runtime adds only missing fallback sections;
 - irrelevant zero-overlap execution-cache records are excluded;
@@ -88,7 +88,14 @@ than context limits, the control plane:
 - semantically identical shell calls ignore execution-only timeout differences,
   while output contracts remain distinct. Existing source files cannot be
   destructively overwritten during a verifier-driven repair; focused replacement
-  preserves already-working behavior.
+  preserves already-working behavior;
+- sequential team members reuse a team-scoped causal tool-evidence cache instead
+  of repeating the same workspace listing, config reads, source reads, and
+  unchanged verifier commands. Mutation records remain in the cache so relevant
+  paths are invalidated correctly;
+- after a failed verifier, a model-authored multi-call batch is serialized to one
+  targeted source inspection or one repair. Unrelated shell reads and broad
+  listings can no longer ride alongside the allowed causal inspection.
 
 The MIA-exp adapter now sends changed verifier artifacts, including Harbor's full
 `pytest.log`, once. An unchanged artifact is represented by a SHA-256 fingerprint
@@ -100,7 +107,9 @@ after every edit. Verifier entrypoints already accessible to terminal agents are
 mirrored into `.roy/official-verifier/` so workspace-scoped filesystem reads can
 inspect their exact assertions. The custom Harbor environment deletes trial
 containers and volumes without deleting pulled benchmark images after every
-probe.
+probe. Because Harbor may populate `/tests` only after the adapter's copy step,
+continuations also upload the identical read-only verifier from the checked-out
+LHTB task into the mirror.
 
 The standard LHTB policy restores a 32K context window and expands the execution
 envelope. A separate development config provides a multi-hour completion-oriented
@@ -109,9 +118,9 @@ This configuration is diagnostic and is not an official-time benchmark result.
 
 ## Verification
 
-- Roy: 41 test files, 310 tests passed.
+- Roy: 41 test files, 311 tests passed.
 - Roy type checking, linting, and build passed.
-- Adapter: 10 LHTB adapter tests and 24 outer tests passed, including delta
+- Adapter: 11 LHTB adapter tests and 25 outer tests passed, including delta
   feedback, verifier mirroring, image retention, and development deadline
   behavior.
 - Linux `amd64` bundled CLI container smoke passed.
@@ -215,3 +224,20 @@ implementation. The rewrite regressed the task to a Great Expectations
 the failed verifier frontier, enforces failure → targeted inspection → focused
 mutation → re-verification, canonicalizes timeout-only duplicate commands, and
 rejects destructive repair overwrites of an existing file.
+
+The subsequent `a1092ca` probe also ran without `AgentTimeoutError`. Four complete
+phases used 140 model calls and 1,173,429 input tokens, or 8,382 input tokens per
+call; phase input fell from 411,455 to 285,230, 213,750, and 262,994 as the
+persisted path accumulated. It was deliberately stopped after 22 minutes 45
+seconds at reward `0.0`.
+
+This run exposed two remaining execution-design defects rather than a need for a
+shorter limit. First, the three sequential team members repeated the same initial
+inspection and failed CLI evidence; core `3254e5e` introduces the shared
+team-tool cache. Second, the adapter-created verifier mirror was empty because
+Harbor populated `/tests` after the remote copy attempt. Roy therefore saw the
+failure summary but not the exact assertions and repeatedly guessed at an
+`order_id` symptom. The adapter now uploads the checked-out, read-only verifier
+source on continuation, and core `424c3dc` serializes each verifier repair into
+one causal inspection or mutation so unrelated calls cannot consume the repair
+frontier.

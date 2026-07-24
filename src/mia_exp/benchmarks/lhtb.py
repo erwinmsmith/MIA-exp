@@ -21,6 +21,7 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
 DEFAULT_BUNDLE = REPO_ROOT / "artifacts" / "roy-run.mjs"
 DEFAULT_NODE_ARCHIVE = REPO_ROOT / "artifacts" / "node-v20.20.2-linux-x64.tar.gz"
 DEFAULT_POLICY = REPO_ROOT / "experiments" / "lhtb" / "roy-workspace-config.json"
+LHTB_TASKS_ROOT = REPO_ROOT / "benchmarks" / "LHTB" / "tasks"
 PASSTHROUGH_ENV = (
     "OPENAI_API_KEY",
     "OPENAI_BASE_URL",
@@ -262,16 +263,36 @@ class RoyLHTBAgent(BaseAgent):
         """Expose mounted verifier sources to Roy's workspace-scoped read tools."""
 
         workspace = shlex.quote(self.workspace)
+        prepared = await environment.exec(
+            command=f"mkdir -p {workspace}/.roy/official-verifier",
+            user="root",
+            timeout_sec=30,
+        )
+        if prepared.return_code != 0:
+            raise RuntimeError(
+                "Could not prepare Roy's verifier mirror directory: "
+                f"{prepared.stderr or prepared.stdout or 'unknown mkdir error'}"
+            )
+        if self._round > 1:
+            task_name = self.logs_dir.parent.name.split("__", 1)[0]
+            local_tests = LHTB_TASKS_ROOT / task_name / "tests"
+            for filename in ("test_outputs.py", "grade.py"):
+                source = local_tests / filename
+                if source.is_file():
+                    await environment.upload_file(
+                        source,
+                        f"{self.workspace}/.roy/official-verifier/{filename}",
+                    )
         mirrored = await environment.exec(
             command=(
                 "set -eu; "
-                f"mkdir -p {workspace}/.roy/official-verifier; "
                 "for name in test_outputs.py grade.py; do "
                 "if [ -f \"/tests/$name\" ]; then "
                 f"cp -f \"/tests/$name\" {workspace}/.roy/official-verifier/; "
-                f"chmod 444 {workspace}/.roy/official-verifier/\"$name\"; "
                 "fi; "
-                "done"
+                "done; "
+                f"find {workspace}/.roy/official-verifier -maxdepth 1 "
+                "-type f -exec chmod 444 {} +"
             ),
             user="root",
             timeout_sec=30,
@@ -306,12 +327,17 @@ class RoyLHTBAgent(BaseAgent):
             )
             local_verifier = self._local_verifier_command()
             if local_verifier:
+                mirrored_verifier = (
+                    ".roy/official-verifier/test_outputs.py"
+                    if "pytest" in local_verifier
+                    else ".roy/official-verifier/grade.py"
+                )
                 content += (
                     "\n\n## Required local repair verification\n\n"
                     "Harbor has now mounted the official verifier in `/tests`. "
                     "Its readable entrypoint is mirrored inside the workspace at "
-                    "`.roy/official-verifier/`; inspect the relevant assertions "
-                    "there before making a structural rewrite. "
+                    f"`{mirrored_verifier}`. Read the relevant assertions from "
+                    "that exact file before making a structural rewrite. "
                     "After each concrete repair, run this command inside the task "
                     "container and use its newest failures for the next repair. "
                     "Do not wait for another outer continuation to discover whether "

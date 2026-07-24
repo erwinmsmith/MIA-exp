@@ -108,5 +108,8 @@ task's actual local verifier entrypoint so repair and re-verification can close
 inside the same Roy phase. The readable verifier entrypoint is mirrored under
 `.roy/official-verifier/`, allowing Roy's workspace-scoped filesystem tools to
 inspect the assertions that are already available to terminal-based agents.
+From the second round onward, the adapter uploads the same read-only verifier
+source from the checked-out LHTB task, avoiding dependence on Harbor's later
+`/tests` injection timing.
 
 The concrete Harbor config and adapter remain in this outer repository.

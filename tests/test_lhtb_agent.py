@@ -150,7 +150,7 @@ class RoyLHTBSecretInjectionTests(unittest.IsolatedAsyncioTestCase):
         mirror_command = next(
             command
             for command, _kwargs in environment.exec_calls
-            if ".roy/official-verifier" in command
+            if 'cp -f "/tests/$name"' in command
         )
         self.assertIn("test_outputs.py grade.py", mirror_command)
         self.assertIn('cp -f "/tests/$name"', mirror_command)
@@ -188,10 +188,36 @@ class RoyLHTBSecretInjectionTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("ImportError: cannot import name 'run_audit'", instruction)
         self.assertIn("ERROR no matching distribution", instruction)
         self.assertIn("## Required local repair verification", instruction)
-        self.assertIn(".roy/official-verifier/", instruction)
+        self.assertIn(
+            ".roy/official-verifier/test_outputs.py",
+            instruction,
+        )
         self.assertIn(
             "python -m pytest -p no:cacheprovider -q /tests/test_outputs.py",
             instruction,
+        )
+
+    async def test_continuation_uploads_checked_out_verifier_into_workspace(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            trial_dir = Path(directory) / "great-expectations-audit__trial"
+            logs_dir = trial_dir / "agent"
+            logs_dir.mkdir(parents=True)
+            agent = RoyLHTBAgent(logs_dir=logs_dir)
+            agent._round = 2
+            environment = FakeEnvironment()
+
+            await agent._mirror_official_verifier(environment)  # type: ignore[arg-type]
+
+        verifier_upload = next(
+            upload
+            for upload in environment.uploads
+            if upload[1].endswith("/.roy/official-verifier/test_outputs.py")
+        )
+        self.assertIn(
+            "def test_cli_creates_all_required_artifacts",
+            verifier_upload[2],
         )
 
     async def test_continuation_does_not_replay_unchanged_verifier_artifacts(self) -> None:
