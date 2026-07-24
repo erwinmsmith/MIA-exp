@@ -6,13 +6,14 @@ import tempfile
 import unittest
 from pathlib import Path
 from typing import Any
-from unittest.mock import patch
+from unittest.mock import AsyncMock, Mock, patch
 
 from harbor.environments.base import ExecResult
 from harbor.models.agent.context import AgentContext
 
 from mia_exp.benchmarks.lhtb import (
     RoyLHTBAgent,
+    RoyLHTBDockerEnvironment,
     _external_wall_clock_ms,
     _write_runtime_env_file,
 )
@@ -46,6 +47,27 @@ class RuntimeEnvFileTests(unittest.TestCase):
             379_000,
         )
         self.assertIsNone(_external_wall_clock_ms("Initial benchmark round."))
+
+
+class DockerImageRetentionTests(unittest.IsolatedAsyncioTestCase):
+    async def test_trial_cleanup_removes_volumes_without_deleting_pulled_image(
+        self,
+    ) -> None:
+        environment = object.__new__(RoyLHTBDockerEnvironment)
+        environment.prepare_logs_for_host = AsyncMock()  # type: ignore[method-assign]
+        environment._run_docker_compose_command = AsyncMock()  # type: ignore[method-assign]
+        environment._cleanup_mounts_compose_file = Mock()  # type: ignore[method-assign]
+        environment._keep_containers = False
+        environment.logger = Mock()
+
+        await environment.stop(delete=True)
+
+        environment._run_docker_compose_command.assert_awaited_once_with(  # type: ignore[attr-defined]
+            ["down", "--volumes", "--remove-orphans"]
+        )
+        command = environment._run_docker_compose_command.await_args.args[0]  # type: ignore[attr-defined]
+        self.assertNotIn("--rmi", command)
+        environment._cleanup_mounts_compose_file.assert_called_once_with()  # type: ignore[attr-defined]
 
 
 class FakeEnvironment:
@@ -125,6 +147,13 @@ class RoyLHTBSecretInjectionTests(unittest.IsolatedAsyncioTestCase):
             for command, _kwargs in environment.exec_calls
             if "/opt/roy/roy-run.mjs" in command
         )
+        mirror_command = next(
+            command
+            for command, _kwargs in environment.exec_calls
+            if ".roy/official-verifier" in command
+        )
+        self.assertIn("test_outputs.py grade.py", mirror_command)
+        self.assertIn('cp -f "/tests/$name"', mirror_command)
         self.assertIn(". /tmp/roy-runtime-env-1.sh", run_command)
         self.assertIn("rm -f /tmp/roy-runtime-env-1.sh", run_command)
 
@@ -159,6 +188,7 @@ class RoyLHTBSecretInjectionTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("ImportError: cannot import name 'run_audit'", instruction)
         self.assertIn("ERROR no matching distribution", instruction)
         self.assertIn("## Required local repair verification", instruction)
+        self.assertIn(".roy/official-verifier/", instruction)
         self.assertIn(
             "python -m pytest -p no:cacheprovider -q /tests/test_outputs.py",
             instruction,

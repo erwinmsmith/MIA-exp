@@ -5,7 +5,7 @@ n_concurrent_trials: 1
 timeout_multiplier: 1.0
 
 environment:
-  type: docker
+  import_path: mia_exp.benchmarks.lhtb:RoyLHTBDockerEnvironment
   force_build: false
   delete: true
 

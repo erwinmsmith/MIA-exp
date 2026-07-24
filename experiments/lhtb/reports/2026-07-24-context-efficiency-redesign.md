@@ -32,8 +32,8 @@ of 103,679 characters and a maximum of 177,818 characters.
 ## Implemented redesign
 
 Roy core commits `ad0fbf1`, `fa78f99`, `75427af`, `b23408c`, `5cad652`,
-`a166a1c`, `5a06952`, and `632754e` make execution state, rather than context
-limits, the control plane:
+`a166a1c`, `5a06952`, `632754e`, and `a1092ca` make execution state, rather
+than context limits, the control plane:
 
 - prompt slots are rendered once; Runtime adds only missing fallback sections;
 - irrelevant zero-overlap execution-cache records are excluded;
@@ -80,7 +80,15 @@ limits, the control plane:
   bounded source chunk. The first recovered chunk overwrites the target and a
   subsequent distinct recovered chunk appends, so generated implementation work
   is no longer discarded merely because the surrounding JSON ended at the model
-  output boundary.
+  output boundary;
+- verification state now distinguishes attempted, failed, and passed checks
+  relative to the latest mutation. A failed verifier retains its detailed causal
+  frontier after a later source read, permits one targeted inspection, then
+  requires a repair before another verification;
+- semantically identical shell calls ignore execution-only timeout differences,
+  while output contracts remain distinct. Existing source files cannot be
+  destructively overwritten during a verifier-driven repair; focused replacement
+  preserves already-working behavior.
 
 The MIA-exp adapter now sends changed verifier artifacts, including Harbor's full
 `pytest.log`, once. An unchanged artifact is represented by a SHA-256 fingerprint
@@ -88,7 +96,11 @@ and resolves through the persisted execution ledger. After Harbor has mounted th
 official tests, each continuation also declares the available `/tests` verifier
 entrypoint as a required local command. Roy can therefore repair and rerun the
 real verifier inside one phase instead of waiting for another outer continuation
-after every edit.
+after every edit. Verifier entrypoints already accessible to terminal agents are
+mirrored into `.roy/official-verifier/` so workspace-scoped filesystem reads can
+inspect their exact assertions. The custom Harbor environment deletes trial
+containers and volumes without deleting pulled benchmark images after every
+probe.
 
 The standard LHTB policy restores a 32K context window and expands the execution
 envelope. A separate development config provides a multi-hour completion-oriented
@@ -97,9 +109,10 @@ This configuration is diagnostic and is not an official-time benchmark result.
 
 ## Verification
 
-- Roy: 41 test files, 307 tests passed.
+- Roy: 41 test files, 310 tests passed.
 - Roy type checking, linting, and build passed.
-- Adapter: 9 unit tests passed, including delta feedback and development deadline
+- Adapter: 10 LHTB adapter tests and 24 outer tests passed, including delta
+  feedback, verifier mirroring, image retention, and development deadline
   behavior.
 - Linux `amd64` bundled CLI container smoke passed.
 - Harbor adapter import smoke passed.
@@ -183,3 +196,22 @@ Runtime retried parsing and eventually discarded the generated code, leaving
 later root attempts with zero tool calls. The probe was stopped after about five
 minutes. Core `632754e` recovers that response as bounded overwrite/append chunks
 and has regression coverage for both the first and subsequent chunks.
+
+The `632754e` Great Expectations probe ran for 22 minutes 34 seconds across six
+Roy phases without `AgentTimeoutError`. It consumed 220 model calls, 1,887,461
+input tokens (1,166,336 cached), and 113,023 output tokens. Average input per
+model call was 8,579 tokens, down from about 10,230 in the earlier `b23408c`
+probe, and the first two phases consumed 785,975 input tokens rather than
+multi-million-token single-task runs.
+
+The probe recovered and compiled a 21 KB implementation, produced six required
+artifacts, ran the official `/tests/test_outputs.py` inside the Roy phase, and
+temporarily reduced the verifier to one passing and ten failing tests. It was
+then deliberately stopped at reward `0.0`: the old bundle treated the failed
+verification as if no verification had run, lost its detailed failure after
+later reads, and replaced the entire partially working source with a new
+implementation. The rewrite regressed the task to a Great Expectations
+`DataContext` error. Core `a1092ca` is the evidence-driven repair: it preserves
+the failed verifier frontier, enforces failure → targeted inspection → focused
+mutation → re-verification, canonicalizes timeout-only duplicate commands, and
+rejects destructive repair overwrites of an existing file.

@@ -23,6 +23,9 @@ Python. It rejects locally reconstructed images without a registry digest. The
 scripts use an isolated anonymous Docker client config so a stale desktop credential
 helper cannot block pulls. Set
 `MIA_DOCKER_CONFIG=/path/to/config` to use a different Docker client config.
+Trial cleanup removes containers, volumes, and orphaned resources but retains
+these pulled benchmark images, avoiding a repeated multi-hundred-megabyte pull
+between repair probes.
 
 ## Roy agent run
 
@@ -102,6 +105,8 @@ execution ledger. Roy links the new execution path to the previous open path and
 continues modification, verification, and acceptance work without rebuilding the
 initial team. Once Harbor has mounted `/tests`, the adapter also supplies the
 task's actual local verifier entrypoint so repair and re-verification can close
-inside the same Roy phase.
+inside the same Roy phase. The readable verifier entrypoint is mirrored under
+`.roy/official-verifier/`, allowing Roy's workspace-scoped filesystem tools to
+inspect the assertions that are already available to terminal-based agents.
 
 The concrete Harbor config and adapter remain in this outer repository.

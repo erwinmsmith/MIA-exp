@@ -13,6 +13,7 @@ from typing import Any
 
 from harbor.agents.base import BaseAgent
 from harbor.environments.base import BaseEnvironment
+from harbor.environments.docker.docker import DockerEnvironment
 from harbor.models.agent.context import AgentContext
 
 
@@ -77,6 +78,30 @@ def _external_wall_clock_ms(instruction: str) -> int | None:
     remaining_seconds = int(matches[-1])
     safety_margin_seconds = min(45, max(5, remaining_seconds // 10))
     return max(1_000, (remaining_seconds - safety_margin_seconds) * 1_000)
+
+
+class RoyLHTBDockerEnvironment(DockerEnvironment):
+    """Delete trial containers and volumes while retaining pulled benchmark images."""
+
+    async def stop(self, delete: bool) -> None:
+        if not delete:
+            await super().stop(delete=False)
+            return
+        try:
+            await self.prepare_logs_for_host()
+            if self._keep_containers:
+                self.logger.warning(
+                    "Both keep_containers and delete are set; keep_containers takes precedence."
+                )
+                await self._run_docker_compose_command(["stop"])
+            else:
+                await self._run_docker_compose_command(
+                    ["down", "--volumes", "--remove-orphans"]
+                )
+        except Exception as error:
+            self.logger.warning("Docker compose cleanup failed: %s", error)
+        finally:
+            self._cleanup_mounts_compose_file()
 
 
 class RoyLHTBAgent(BaseAgent):
@@ -233,6 +258,30 @@ class RoyLHTBAgent(BaseAgent):
             return "python /tests/grade.py"
         return None
 
+    async def _mirror_official_verifier(self, environment: BaseEnvironment) -> None:
+        """Expose mounted verifier sources to Roy's workspace-scoped read tools."""
+
+        workspace = shlex.quote(self.workspace)
+        mirrored = await environment.exec(
+            command=(
+                "set -eu; "
+                f"mkdir -p {workspace}/.roy/official-verifier; "
+                "for name in test_outputs.py grade.py; do "
+                "if [ -f \"/tests/$name\" ]; then "
+                f"cp -f \"/tests/$name\" {workspace}/.roy/official-verifier/; "
+                f"chmod 444 {workspace}/.roy/official-verifier/\"$name\"; "
+                "fi; "
+                "done"
+            ),
+            user="root",
+            timeout_sec=30,
+        )
+        if mirrored.return_code != 0:
+            raise RuntimeError(
+                "Could not mirror the mounted verifier into Roy's workspace: "
+                f"{mirrored.stderr or mirrored.stdout or 'unknown copy error'}"
+            )
+
     def _build_instruction(self, instruction: str) -> str:
         content = (
             "This is a long-horizon terminal benchmark task. Work directly in "
@@ -260,6 +309,9 @@ class RoyLHTBAgent(BaseAgent):
                 content += (
                     "\n\n## Required local repair verification\n\n"
                     "Harbor has now mounted the official verifier in `/tests`. "
+                    "Its readable entrypoint is mirrored inside the workspace at "
+                    "`.roy/official-verifier/`; inspect the relevant assertions "
+                    "there before making a structural rewrite. "
                     "After each concrete repair, run this command inside the task "
                     "container and use its newest failures for the next repair. "
                     "Do not wait for another outer continuation to discover whether "
@@ -278,6 +330,7 @@ class RoyLHTBAgent(BaseAgent):
     ) -> None:
         self._round += 1
         round_id = self._round
+        await self._mirror_official_verifier(environment)
         local_instruction = self.logs_dir / f"instruction-{round_id}.txt"
         local_instruction.write_text(self._build_instruction(instruction), encoding="utf-8")
         remote_instruction = f"/tmp/roy-instruction-{round_id}.txt"
