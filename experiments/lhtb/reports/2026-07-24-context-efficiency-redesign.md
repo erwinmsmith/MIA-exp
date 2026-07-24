@@ -31,8 +31,8 @@ of 103,679 characters and a maximum of 177,818 characters.
 
 ## Implemented redesign
 
-Roy core commit `ad0fbf1` makes execution state, rather than context limits, the
-control plane:
+Roy core commits `ad0fbf1` and `fa78f99` make execution state, rather than
+context limits, the control plane:
 
 - prompt slots are rendered once; Runtime adds only missing fallback sections;
 - irrelevant zero-overlap execution-cache records are excluded;
@@ -47,7 +47,11 @@ control plane:
   descendant delegation; bounded members execute their assigned closure
   directly;
 - synthesized team evidence replaces duplicated member reports when a team
-  result exists.
+  result exists;
+- mutation-task output paths are no longer mistaken for missing input evidence;
+- long-horizon workspace tasks obey the configured exploratory delegation limit
+  and hand control to root implementation instead of spending every delegation
+  round on additional analysis teams.
 
 The MIA-exp adapter now sends changed verifier artifacts in full once. An
 unchanged artifact is represented by a SHA-256 fingerprint and resolves through
@@ -60,7 +64,7 @@ This configuration is diagnostic and is not an official-time benchmark result.
 
 ## Verification
 
-- Roy: 41 test files, 294 tests passed.
+- Roy: 41 test files, 295 tests passed.
 - Roy type checking, linting, and build passed.
 - Adapter: 9 unit tests passed, including delta feedback and development deadline
   behavior.
@@ -72,8 +76,18 @@ This configuration is diagnostic and is not an official-time benchmark result.
 
 ## Live validation
 
-The versioned bundle `roy-run-ad0fbf1.mjs` is used for the next real LHTB
-development run. Benchmark reward, Harbor exception status, model-call count,
-input tokens, resumed-path events, actor count, and verification phases must all
-be reported from the resulting artifacts. A passing unit or oracle smoke is not
-reported as a Roy benchmark pass.
+An initial Great Expectations development probe with `ad0fbf1` was deliberately
+terminated after 4 minutes 39 seconds when its trace exposed another structural
+defect. At that point:
+
+- nine actors had an average rendered prompt size of 13,175 tokens, compared with
+  the old estimated average of 29,623 tokens (55.5% lower);
+- all nine bounded members emitted the new delegation-assessment skip event;
+- three root teams had nevertheless been created because two required output
+  paths were misclassified as missing read evidence.
+
+The probe is diagnostic and is not a benchmark result. `fa78f99` fixes that
+newly exposed handoff defect. The next versioned bundle must report benchmark
+reward, Harbor exception status, model-call count, input tokens, resumed-path
+events, actor count, and verification phases from complete artifacts. A passing
+unit or oracle smoke is not reported as a Roy benchmark pass.
