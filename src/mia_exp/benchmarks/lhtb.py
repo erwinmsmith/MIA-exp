@@ -32,6 +32,11 @@ PASSTHROUGH_ENV = (
     "DEFAULT_MODEL",
 )
 ENV_KEY_PATTERN = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+VERIFIER_FEEDBACK_FILES = (
+    "reward.txt",
+    "test-stdout.txt",
+    "install.log",
+)
 
 
 def _write_runtime_env_file(values: dict[str, str]) -> Path:
@@ -169,6 +174,41 @@ class RoyLHTBAgent(BaseAgent):
         runtime_env["LOG_LEVEL"] = "error"
         return runtime_env
 
+    def _official_verifier_feedback(self) -> str:
+        """Load bounded official verifier evidence for continuation rounds."""
+
+        verifier_dir = self.logs_dir.parent / "verifier"
+        sections: list[str] = []
+        for filename in VERIFIER_FEEDBACK_FILES:
+            path = verifier_dir / filename
+            if not path.is_file():
+                continue
+            content = path.read_text(encoding="utf-8", errors="replace").strip()
+            if content:
+                sections.append(f"### {filename}\n{content[-4000:]}")
+        return "\n\n".join(sections)
+
+    def _build_instruction(self, instruction: str) -> str:
+        content = (
+            "This is a long-horizon terminal benchmark task. Work directly in "
+            f"{self.workspace}. Use the terminal and filesystem tools, inspect "
+            "actual state, implement the solution, run verification where "
+            "possible, and continue until the task is genuinely complete. "
+            "Do not merely describe commands.\n\n"
+            f"{instruction}"
+        )
+        feedback = self._official_verifier_feedback()
+        if self._round > 1 and feedback:
+            content += (
+                "\n\n<official_verifier_feedback>\n"
+                "These are the latest official verifier artifacts. Treat their "
+                "concrete errors as authoritative feedback, repair them, and rerun "
+                "the relevant local checks before finalizing.\n\n"
+                f"{feedback}\n"
+                "</official_verifier_feedback>"
+            )
+        return content
+
     async def run(
         self,
         instruction: str,
@@ -178,17 +218,7 @@ class RoyLHTBAgent(BaseAgent):
         self._round += 1
         round_id = self._round
         local_instruction = self.logs_dir / f"instruction-{round_id}.txt"
-        local_instruction.write_text(
-            (
-                "This is a long-horizon terminal benchmark task. Work directly in "
-                f"{self.workspace}. Use the terminal and filesystem tools, inspect "
-                "actual state, implement the solution, run verification where "
-                "possible, and continue until the task is genuinely complete. "
-                "Do not merely describe commands.\n\n"
-                f"{instruction}"
-            ),
-            encoding="utf-8",
-        )
+        local_instruction.write_text(self._build_instruction(instruction), encoding="utf-8")
         remote_instruction = f"/tmp/roy-instruction-{round_id}.txt"
         remote_result = f"/tmp/roy-run-{round_id}.json"
         await environment.upload_file(local_instruction, remote_instruction)

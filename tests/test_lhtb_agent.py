@@ -102,6 +102,32 @@ class RoyLHTBSecretInjectionTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn(". /tmp/roy-runtime-env-1.sh", run_command)
         self.assertIn("rm -f /tmp/roy-runtime-env-1.sh", run_command)
 
+    async def test_continuation_includes_bounded_official_verifier_artifacts(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            trial_dir = Path(directory)
+            logs_dir = trial_dir / "agent"
+            verifier_dir = trial_dir / "verifier"
+            logs_dir.mkdir()
+            verifier_dir.mkdir()
+            (verifier_dir / "reward.txt").write_text("0", encoding="utf-8")
+            (verifier_dir / "test-stdout.txt").write_text(
+                "FAILED dependency gate\nlangchain-community is unavailable",
+                encoding="utf-8",
+            )
+            (verifier_dir / "install.log").write_text(
+                "ERROR no matching distribution",
+                encoding="utf-8",
+            )
+            agent = RoyLHTBAgent(logs_dir=logs_dir)
+            agent._round = 2
+
+            instruction = agent._build_instruction("Continue the migration.")
+
+        self.assertIn("<official_verifier_feedback>", instruction)
+        self.assertIn("FAILED dependency gate", instruction)
+        self.assertIn("langchain-community is unavailable", instruction)
+        self.assertIn("ERROR no matching distribution", instruction)
+
 
 if __name__ == "__main__":
     unittest.main()
