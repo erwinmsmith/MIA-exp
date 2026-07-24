@@ -64,6 +64,13 @@ class DotenvTests(unittest.TestCase):
                         "type": "tool.error",
                         "data": {"error": "Command timed out after 1000ms"},
                     },
+                    {"type": "llm.stream.retrying"},
+                    {
+                        "type": "llm.stream.failed",
+                        "data": {"error": "Request timed out after 120000ms"},
+                    },
+                    {"type": "llm.json.recovered"},
+                    {"type": "team.synthesis.recovered"},
                     {
                         "type": "spawn.policy.rejected",
                         "data": {"reason": "max_children_exceeded"},
@@ -89,6 +96,10 @@ class DotenvTests(unittest.TestCase):
         self.assertEqual(telemetry["toolIntentRecoveriesCompleted"], 1)
         self.assertEqual(telemetry["toolErrors"], 1)
         self.assertEqual(telemetry["toolTimeouts"], 1)
+        self.assertEqual(telemetry["llmRequestTimeouts"], 1)
+        self.assertEqual(telemetry["llmRetryEvents"], 1)
+        self.assertEqual(telemetry["llmRecoveryEvents"], 1)
+        self.assertEqual(telemetry["teamSynthesisRecoveries"], 1)
         self.assertEqual(telemetry["outputContractRepairEvents"], 2)
         self.assertEqual(telemetry["truncatedStreams"], 1)
 

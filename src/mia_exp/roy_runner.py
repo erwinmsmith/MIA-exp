@@ -91,6 +91,18 @@ def _telemetry(artifact: dict[str, Any]) -> dict[str, Any]:
         for event in tool_errors
         if "timed out" in str((event.get("data") or {}).get("error", "")).lower()
     ]
+    llm_failures = [
+        event
+        for event in events
+        if isinstance(event, dict)
+        and event.get("type") in {"llm.stream.failed", "llm.json.failed"}
+    ]
+    llm_request_timeouts = [
+        event
+        for event in llm_failures
+        if "timed out" in str((event.get("data") or {}).get("error", "")).lower()
+        or "timeout" in str((event.get("data") or {}).get("error", "")).lower()
+    ]
     return {
         "correlationId": result.get("correlationId"),
         "decision": (result.get("decision") or {}).get("action"),
@@ -173,6 +185,12 @@ def _telemetry(artifact: dict[str, Any]) -> dict[str, Any]:
         ),
         "toolErrors": len(tool_errors),
         "toolTimeouts": len(tool_timeouts),
+        "llmRequestTimeouts": len(llm_request_timeouts),
+        "llmRetryEvents": event_counts.get("llm.stream.retrying", 0)
+        + event_counts.get("llm.json.retrying", 0),
+        "llmRecoveryEvents": event_counts.get("llm.stream.recovered", 0)
+        + event_counts.get("llm.json.recovered", 0),
+        "teamSynthesisRecoveries": event_counts.get("team.synthesis.recovered", 0),
         "outputContractRepairEvents": sum(
             count
             for name, count in event_counts.items()
