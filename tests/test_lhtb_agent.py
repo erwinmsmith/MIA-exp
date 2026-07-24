@@ -128,7 +128,7 @@ class RoyLHTBSecretInjectionTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn(". /tmp/roy-runtime-env-1.sh", run_command)
         self.assertIn("rm -f /tmp/roy-runtime-env-1.sh", run_command)
 
-    async def test_continuation_includes_bounded_official_verifier_artifacts(self) -> None:
+    async def test_continuation_includes_changed_official_verifier_artifacts(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             trial_dir = Path(directory)
             logs_dir = trial_dir / "agent"
@@ -154,6 +154,27 @@ class RoyLHTBSecretInjectionTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("langchain-community is unavailable", instruction)
         self.assertIn("ERROR no matching distribution", instruction)
 
+    async def test_continuation_does_not_replay_unchanged_verifier_artifacts(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            trial_dir = Path(directory)
+            logs_dir = trial_dir / "agent"
+            verifier_dir = trial_dir / "verifier"
+            logs_dir.mkdir()
+            verifier_dir.mkdir()
+            failure = "FAILED dependency gate\nlangchain-community is unavailable"
+            (verifier_dir / "test-stdout.txt").write_text(failure, encoding="utf-8")
+            agent = RoyLHTBAgent(logs_dir=logs_dir)
+            agent._round = 2
+
+            first = agent._build_instruction("Continue the migration.")
+            agent._round = 3
+            second = agent._build_instruction("Continue the migration.")
+
+        self.assertIn(failure, first)
+        self.assertNotIn(failure, second)
+        self.assertIn("Unchanged since the previous Roy round", second)
+        self.assertIn("persisted execution ledger", second)
+
     async def test_continuation_passes_external_deadline_to_roy(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             logs_dir = Path(directory)
@@ -172,6 +193,28 @@ class RoyLHTBSecretInjectionTests(unittest.IsolatedAsyncioTestCase):
             if "/opt/roy/roy-run.mjs" in command
         )
         self.assertIn("--wall-clock-ms 379000", run_command)
+
+    async def test_development_run_can_use_its_workspace_policy_deadline(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            logs_dir = Path(directory)
+            agent = RoyLHTBAgent(
+                logs_dir=logs_dir,
+                honor_external_deadline=False,
+            )
+            environment = FakeEnvironment()
+
+            await agent.run(
+                "You still have approximately 421 seconds remaining in this trial.",
+                environment,  # type: ignore[arg-type]
+                AgentContext(),
+            )
+
+        run_command = next(
+            command
+            for command, _kwargs in environment.exec_calls
+            if "/opt/roy/roy-run.mjs" in command
+        )
+        self.assertNotIn("--wall-clock-ms", run_command)
 
 
 if __name__ == "__main__":

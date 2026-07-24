@@ -55,6 +55,21 @@ LHTB_ROY_TASKS="langchain-version-migration,great-expectations-audit,document-ta
 make run-lhtb-roy
 ```
 
+For completion-oriented local debugging, use the development config. It keeps the
+official task and verifier unchanged but gives Roy a multi-hour process envelope,
+uses the benchmark-agnostic development workspace policy, and does not replace that
+policy with Harbor's per-continuation countdown:
+
+```bash
+LHTB_ROY_CONFIG="$PWD/experiments/lhtb/configs/roy_development.yaml" \
+LHTB_ROY_TASKS="langchain-version-migration,great-expectations-audit,document-table-layout-reconstruction" \
+make run-lhtb-roy
+```
+
+Use `roy_multi.yaml` for comparable official-time results. The development config
+is for exposing and closing implementation defects; its longer envelope is not
+reported as an official benchmark result.
+
 `LHTB_ROY_CONFIG` selects the Harbor config and `LHTB_ROY_TASKS` is the
 comma-separated image-preparation set. Raw jobs remain ignored; publish only
 deliberately summarized, secret-free results.
@@ -80,5 +95,11 @@ Artifacts are written below `jobs/<job>/<trial>/agent/`:
 - `roy-state-<round>/`: persisted memory, full traces, execution trees, and
   execution knowledge (step/path/agent/team/feedback) caches;
 - `instruction-<round>.txt`: exact instruction supplied to Roy.
+
+Continuation rounds carry only changed official verifier artifacts. Identical
+artifacts are represented by a content fingerprint and reuse Roy's persisted
+execution ledger. Roy links the new execution path to the previous open path and
+continues modification, verification, and acceptance work without rebuilding the
+initial team.
 
 The concrete Harbor config and adapter remain in this outer repository.

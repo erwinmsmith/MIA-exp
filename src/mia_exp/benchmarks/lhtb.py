@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import re
@@ -97,6 +98,7 @@ class RoyLHTBAgent(BaseAgent):
         workspace: str = "/app",
         timeout_sec: int = 5400,
         token_budget: int | None = None,
+        honor_external_deadline: bool = True,
         extra_env: dict[str, str] | None = None,
         **kwargs: Any,
     ):
@@ -115,12 +117,14 @@ class RoyLHTBAgent(BaseAgent):
         self.workspace = workspace
         self.timeout_sec = timeout_sec
         self.token_budget = token_budget
+        self.honor_external_deadline = honor_external_deadline
         self.extra_env = {
             key: value for key in PASSTHROUGH_ENV if (value := os.environ.get(key))
         }
         if extra_env:
             self.extra_env.update(extra_env)
         self._round = 0
+        self._verifier_feedback_hashes: dict[str, str] = {}
 
     def version(self) -> str:
         package = json.loads((REPO_ROOT / "core" / "Roy" / "package.json").read_text())
@@ -192,7 +196,7 @@ class RoyLHTBAgent(BaseAgent):
         return runtime_env
 
     def _official_verifier_feedback(self) -> str:
-        """Load bounded official verifier evidence for continuation rounds."""
+        """Load changed verifier evidence and avoid replaying identical artifacts."""
 
         verifier_dir = self.logs_dir.parent / "verifier"
         sections: list[str] = []
@@ -201,8 +205,21 @@ class RoyLHTBAgent(BaseAgent):
             if not path.is_file():
                 continue
             content = path.read_text(encoding="utf-8", errors="replace").strip()
-            if content:
-                sections.append(f"### {filename}\n{content[-4000:]}")
+            if not content:
+                continue
+            digest = hashlib.sha256(content.encode("utf-8")).hexdigest()
+            prior_digest = self._verifier_feedback_hashes.get(filename)
+            self._verifier_feedback_hashes[filename] = digest
+            if prior_digest == digest:
+                sections.append(
+                    f"### {filename}\n"
+                    f"Unchanged since the previous Roy round (sha256:{digest[:16]}). "
+                    "Use the persisted execution ledger for the previously supplied details."
+                )
+            else:
+                sections.append(
+                    f"### {filename} (new or changed; sha256:{digest[:16]})\n{content}"
+                )
         return "\n\n".join(sections)
 
     def _build_instruction(self, instruction: str) -> str:
@@ -218,7 +235,10 @@ class RoyLHTBAgent(BaseAgent):
         if self._round > 1 and feedback:
             content += (
                 "\n\n<official_verifier_feedback>\n"
-                "These are the latest official verifier artifacts. Treat their "
+                "Resume the persisted execution tree rather than rebuilding the "
+                "initial team. These are delta-aware official verifier artifacts: "
+                "changed content is included in full, while an unchanged marker "
+                "refers to evidence already stored in the execution ledger. Treat "
                 "concrete errors as authoritative feedback, repair them, and rerun "
                 "the relevant local checks before finalizing.\n\n"
                 f"{feedback}\n"
@@ -242,7 +262,11 @@ class RoyLHTBAgent(BaseAgent):
         budget_flag = (
             f" --budget {self.token_budget}" if self.token_budget is not None else ""
         )
-        external_wall_clock_ms = _external_wall_clock_ms(instruction)
+        external_wall_clock_ms = (
+            _external_wall_clock_ms(instruction)
+            if self.honor_external_deadline
+            else None
+        )
         wall_clock_flag = (
             f" --wall-clock-ms {external_wall_clock_ms}"
             if external_wall_clock_ms is not None

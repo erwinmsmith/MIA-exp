@@ -1,0 +1,24 @@
+job_name: lhtb-roy-development
+jobs_dir: ./jobs
+n_attempts: 1
+n_concurrent_trials: 1
+timeout_multiplier: 4.0
+
+environment:
+  type: docker
+  force_build: false
+  delete: true
+
+agents:
+  - import_path: mia_exp.benchmarks.lhtb:RoyLHTBAgent
+    kwargs:
+      timeout_sec: 14400
+      honor_external_deadline: false
+      policy_path: ./experiments/lhtb/roy-development-workspace-config.json
+
+datasets:
+  - path: ./benchmarks/LHTB/tasks
+    task_names:
+      - langchain-version-migration
+      - great-expectations-audit
+      - document-table-layout-reconstruction

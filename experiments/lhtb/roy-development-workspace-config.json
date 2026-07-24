@@ -1,5 +1,5 @@
 {
-  "version": 15,
+  "version": 1,
   "traceEvents": true,
   "memoryUpdates": "off",
   "delegation": {
@@ -10,21 +10,21 @@
     "maxTotalAgentsPerTurn": 24,
     "rootSteps": {
       "enabled": true,
-      "maxStepsPerTurn": 18,
-      "maxDelegationRounds": 6,
+      "maxStepsPerTurn": 24,
+      "maxDelegationRounds": 8,
       "reassessAfterDelegation": true,
-      "maxWallClockMs": 3300000,
-      "maxStalledIterations": 3,
+      "maxWallClockMs": 10800000,
+      "maxStalledIterations": 4,
       "persistEveryStep": true,
       "cacheExecutionKnowledge": true,
       "teamFirstLongHorizon": true,
-      "maxCachedSteps": 300,
-      "maxFeedbackItemsInPrompt": 32,
-      "maxExecutionClosureAttempts": 4,
+      "maxCachedSteps": 500,
+      "maxFeedbackItemsInPrompt": 48,
+      "maxExecutionClosureAttempts": 8,
       "directDecisionAuditMinObligations": 4,
       "maxExploratoryDelegationRounds": 2,
-      "executionReserveMs": 1200000,
-      "finalizationReserveMs": 180000,
+      "executionReserveMs": 7200000,
+      "finalizationReserveMs": 300000,
       "requireAcceptanceAudit": true
     }
   },
@@ -60,17 +60,17 @@
     "shell": {
       "mode": "unrestricted",
       "shell": "/bin/sh",
-      "defaultTimeoutMs": 180000,
-      "maxTimeoutMs": 600000,
-      "defaultMaxOutputBytes": 120000,
-      "maxCallsPerAgent": 500
+      "defaultTimeoutMs": 300000,
+      "maxTimeoutMs": 1800000,
+      "defaultMaxOutputBytes": 160000,
+      "maxCallsPerAgent": 1000
     },
     "executionLoop": {
       "enabled": true,
-      "maxRounds": 36,
-      "maxCallsPerRun": 64,
-      "maxConsecutiveFailures": 5,
-      "maxWallClockMs": 1800000,
+      "maxRounds": 72,
+      "maxCallsPerRun": 128,
+      "maxConsecutiveFailures": 8,
+      "maxWallClockMs": 7200000,
       "maxFetchesAfterSearch": 4,
       "llmReplanning": true
     }
