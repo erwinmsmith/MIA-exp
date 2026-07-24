@@ -32,8 +32,8 @@ of 103,679 characters and a maximum of 177,818 characters.
 ## Implemented redesign
 
 Roy core commits `ad0fbf1`, `fa78f99`, `75427af`, `b23408c`, `5cad652`,
-`a166a1c`, and `5a06952` make execution state, rather than context limits, the
-control plane:
+`a166a1c`, `5a06952`, and `632754e` make execution state, rather than context
+limits, the control plane:
 
 - prompt slots are rendered once; Runtime adds only missing fallback sections;
 - irrelevant zero-overlap execution-cache records are excluded;
@@ -75,7 +75,12 @@ control plane:
 - deterministic inspection plans use path-scoped cache invalidation across root
   closure attempts. A cached config read survives an unrelated source edit, a
   source read is invalidated by an edit to that source, and a directory listing
-  is not discarded by an in-place replacement.
+  is not discarded by an in-place replacement;
+- a truncated structured `fs.write` response is recovered into an executable
+  bounded source chunk. The first recovered chunk overwrites the target and a
+  subsequent distinct recovered chunk appends, so generated implementation work
+  is no longer discarded merely because the surrounding JSON ended at the model
+  output boundary.
 
 The MIA-exp adapter now sends changed verifier artifacts, including Harbor's full
 `pytest.log`, once. An unchanged artifact is represented by a SHA-256 fingerprint
@@ -92,7 +97,7 @@ This configuration is diagnostic and is not an official-time benchmark result.
 
 ## Verification
 
-- Roy: 41 test files, 304 tests passed.
+- Roy: 41 test files, 307 tests passed.
 - Roy type checking, linting, and build passed.
 - Adapter: 9 unit tests passed, including delta feedback and development deadline
   behavior.
@@ -168,3 +173,13 @@ cross-attempt caching to failed verification commands. Core `5a06952` generalize
 that cache to path-scoped inspection evidence. This probe was stopped to avoid
 spending the multi-hour envelope on a known replay defect and is not a benchmark
 result.
+
+The first `5a06952` probe confirmed that all three stale deterministic plans
+(`fs.list`, the unchanged config read, and the already failed CLI) were skipped
+at every root closure attempt. It then exposed a different zero-progress path:
+the model produced a large, correctly targeted `fs.write` plan for
+`src/dq_audit/audit.py`, but the JSON response ended inside the source string.
+Runtime retried parsing and eventually discarded the generated code, leaving
+later root attempts with zero tool calls. The probe was stopped after about five
+minutes. Core `632754e` recovers that response as bounded overwrite/append chunks
+and has regression coverage for both the first and subsequent chunks.
