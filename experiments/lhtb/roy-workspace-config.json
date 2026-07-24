@@ -1,5 +1,5 @@
 {
-  "version": 13,
+  "version": 14,
   "traceEvents": true,
   "memoryUpdates": "off",
   "delegation": {
@@ -29,10 +29,10 @@
     }
   },
   "context": {
-    "sessionWindowTurns": 30,
-    "maxContextTokens": 32000,
+    "sessionWindowTurns": 20,
+    "maxContextTokens": 16000,
     "includeToolResults": "summary",
-    "includeSubagentReports": "full",
+    "includeSubagentReports": "summary",
     "includePrivateMemory": true,
     "includePublicMemory": true
   },
