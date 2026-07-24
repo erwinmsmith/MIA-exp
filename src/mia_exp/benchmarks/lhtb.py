@@ -40,6 +40,7 @@ REMAINING_SECONDS_PATTERN = re.compile(
 VERIFIER_FEEDBACK_FILES = (
     "reward.txt",
     "test-stdout.txt",
+    "pytest.log",
     "install.log",
 )
 

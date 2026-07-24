@@ -31,8 +31,8 @@ of 103,679 characters and a maximum of 177,818 characters.
 
 ## Implemented redesign
 
-Roy core commits `ad0fbf1` and `fa78f99` make execution state, rather than
-context limits, the control plane:
+Roy core commits `ad0fbf1`, `fa78f99`, and `75427af` make execution state,
+rather than context limits, the control plane:
 
 - prompt slots are rendered once; Runtime adds only missing fallback sections;
 - irrelevant zero-overlap execution-cache records are excluded;
@@ -51,11 +51,14 @@ context limits, the control plane:
 - mutation-task output paths are no longer mistaken for missing input evidence;
 - long-horizon workspace tasks obey the configured exploratory delegation limit
   and hand control to root implementation instead of spending every delegation
-  round on additional analysis teams.
+  round on additional analysis teams;
+- transformed repair prompts preserve the original workspace-mutation intent in
+  the tool planner, so a resumed phase cannot satisfy the closure by repeatedly
+  listing and reading files without mutation or verification.
 
-The MIA-exp adapter now sends changed verifier artifacts in full once. An
-unchanged artifact is represented by a SHA-256 fingerprint and resolves through
-the persisted execution ledger.
+The MIA-exp adapter now sends changed verifier artifacts, including Harbor's full
+`pytest.log`, once. An unchanged artifact is represented by a SHA-256 fingerprint
+and resolves through the persisted execution ledger.
 
 The standard LHTB policy restores a 32K context window and expands the execution
 envelope. A separate development config provides a multi-hour completion-oriented
@@ -64,7 +67,7 @@ This configuration is diagnostic and is not an official-time benchmark result.
 
 ## Verification
 
-- Roy: 41 test files, 295 tests passed.
+- Roy: 41 test files, 296 tests passed.
 - Roy type checking, linting, and build passed.
 - Adapter: 9 unit tests passed, including delta feedback and development deadline
   behavior.
@@ -87,7 +90,26 @@ defect. At that point:
   paths were misclassified as missing read evidence.
 
 The probe is diagnostic and is not a benchmark result. `fa78f99` fixes that
-newly exposed handoff defect. The next versioned bundle must report benchmark
-reward, Harbor exception status, model-call count, input tokens, resumed-path
-events, actor count, and verification phases from complete artifacts. A passing
-unit or oracle smoke is not reported as a Roy benchmark pass.
+newly exposed handoff defect.
+
+A second Great Expectations probe with `fa78f99` completed its first Roy phase in
+about four minutes without an agent timeout. It created one team and three actors,
+then handed control to root execution after the delegated mutation:
+
+- 45 model calls;
+- 416,159 input tokens, of which 227,456 were reported as cached input;
+- 31 tool calls and eight root closure attempts;
+- zero new actors and zero new teams in phase two;
+- one `root.task_loop.resumed` event linked phase two to phase one's open path.
+
+This confirmed persistent resumption, but the phase-two trace repeated
+`fs.list`/`fs.read` because the wrapped repair prompt had lost the original
+mutation intent. It also exposed that Harbor's detailed `ImportError` was stored
+in `pytest.log`, which the adapter had not included. The probe was stopped after
+capturing both defects and is not a benchmark result. Core `75427af` and the
+adapter change close them.
+
+The next versioned bundle must report benchmark reward, Harbor exception status,
+model-call count, input tokens, resumed-path events, actor count, and verification
+phases from complete artifacts. A passing unit or oracle smoke is not reported as
+a Roy benchmark pass.

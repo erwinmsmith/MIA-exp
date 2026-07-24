@@ -140,6 +140,10 @@ class RoyLHTBSecretInjectionTests(unittest.IsolatedAsyncioTestCase):
                 "FAILED dependency gate\nlangchain-community is unavailable",
                 encoding="utf-8",
             )
+            (verifier_dir / "pytest.log").write_text(
+                "ImportError: cannot import name 'run_audit'",
+                encoding="utf-8",
+            )
             (verifier_dir / "install.log").write_text(
                 "ERROR no matching distribution",
                 encoding="utf-8",
@@ -152,6 +156,7 @@ class RoyLHTBSecretInjectionTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("<official_verifier_feedback>", instruction)
         self.assertIn("FAILED dependency gate", instruction)
         self.assertIn("langchain-community is unavailable", instruction)
+        self.assertIn("ImportError: cannot import name 'run_audit'", instruction)
         self.assertIn("ERROR no matching distribution", instruction)
 
     async def test_continuation_does_not_replay_unchanged_verifier_artifacts(self) -> None:
