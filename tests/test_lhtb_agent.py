@@ -9,7 +9,11 @@ from typing import Any
 from harbor.environments.base import ExecResult
 from harbor.models.agent.context import AgentContext
 
-from mia_exp.benchmarks.lhtb import RoyLHTBAgent, _write_runtime_env_file
+from mia_exp.benchmarks.lhtb import (
+    RoyLHTBAgent,
+    _external_wall_clock_ms,
+    _write_runtime_env_file,
+)
 
 
 class RuntimeEnvFileTests(unittest.TestCase):
@@ -31,6 +35,15 @@ class RuntimeEnvFileTests(unittest.TestCase):
     def test_rejects_invalid_environment_keys(self) -> None:
         with self.assertRaisesRegex(ValueError, "Invalid runtime environment"):
             _write_runtime_env_file({"BAD-KEY": "value"})
+
+    def test_extracts_a_safety_bounded_external_deadline(self) -> None:
+        self.assertEqual(
+            _external_wall_clock_ms(
+                "You still have approximately 421 seconds remaining in this trial."
+            ),
+            379_000,
+        )
+        self.assertIsNone(_external_wall_clock_ms("Initial benchmark round."))
 
 
 class FakeEnvironment:
@@ -127,6 +140,25 @@ class RoyLHTBSecretInjectionTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("FAILED dependency gate", instruction)
         self.assertIn("langchain-community is unavailable", instruction)
         self.assertIn("ERROR no matching distribution", instruction)
+
+    async def test_continuation_passes_external_deadline_to_roy(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            logs_dir = Path(directory)
+            agent = RoyLHTBAgent(logs_dir=logs_dir)
+            environment = FakeEnvironment()
+
+            await agent.run(
+                "You still have approximately 421 seconds remaining in this trial.",
+                environment,  # type: ignore[arg-type]
+                AgentContext(),
+            )
+
+        run_command = next(
+            command
+            for command, _kwargs in environment.exec_calls
+            if "/opt/roy/roy-run.mjs" in command
+        )
+        self.assertIn("--wall-clock-ms 379000", run_command)
 
 
 if __name__ == "__main__":

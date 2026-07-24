@@ -32,6 +32,10 @@ PASSTHROUGH_ENV = (
     "DEFAULT_MODEL",
 )
 ENV_KEY_PATTERN = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+REMAINING_SECONDS_PATTERN = re.compile(
+    r"approximately\s+(\d+)\s+seconds\s+remaining",
+    re.IGNORECASE,
+)
 VERIFIER_FEEDBACK_FILES = (
     "reward.txt",
     "test-stdout.txt",
@@ -60,6 +64,17 @@ def _write_runtime_env_file(values: dict[str, str]) -> Path:
         path.unlink(missing_ok=True)
         raise
     return path
+
+
+def _external_wall_clock_ms(instruction: str) -> int | None:
+    """Translate Harbor continuation time into a deadline Roy can honor."""
+
+    matches = REMAINING_SECONDS_PATTERN.findall(instruction)
+    if not matches:
+        return None
+    remaining_seconds = int(matches[-1])
+    safety_margin_seconds = min(45, max(5, remaining_seconds // 10))
+    return max(1_000, (remaining_seconds - safety_margin_seconds) * 1_000)
 
 
 class RoyLHTBAgent(BaseAgent):
@@ -225,6 +240,12 @@ class RoyLHTBAgent(BaseAgent):
         budget_flag = (
             f" --budget {self.token_budget}" if self.token_budget is not None else ""
         )
+        external_wall_clock_ms = _external_wall_clock_ms(instruction)
+        wall_clock_flag = (
+            f" --wall-clock-ms {external_wall_clock_ms}"
+            if external_wall_clock_ms is not None
+            else ""
+        )
         command = (
             "/opt/node/bin/node /opt/roy/roy-run.mjs "
             f"--workspace {shlex.quote(self.workspace)} "
@@ -232,6 +253,7 @@ class RoyLHTBAgent(BaseAgent):
             f"--session-id {shlex.quote(environment.session_id)} "
             f"--output {shlex.quote(remote_result)}"
             f"{budget_flag}"
+            f"{wall_clock_flag}"
         )
         remote_env = f"/tmp/roy-runtime-env-{round_id}.sh"
         local_env = _write_runtime_env_file(self._runtime_env())
@@ -294,6 +316,7 @@ class RoyLHTBAgent(BaseAgent):
             "result_download_error": (
                 str(result_download_error) if result_download_error else None
             ),
+            "external_wall_clock_ms": external_wall_clock_ms,
         }
         if local_result.is_file():
             artifact = json.loads(local_result.read_text(encoding="utf-8"))
