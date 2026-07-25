@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import json
 import unittest
+from pathlib import Path
 
 from mia_exp.benchmarks.spp import (
     load_instances,
@@ -42,6 +44,23 @@ class SPPAdapterTests(unittest.TestCase):
         self.assertEqual(score.earned, 5)
         self.assertEqual(score.possible, 5)
         self.assertTrue(score.exact_match)
+
+    def test_trivia_requires_public_web_grounding_without_answer_leakage(self) -> None:
+        instance = load_instances("spp.trivia-creative-writing-n5")[0]
+        prompt = render_prompt("spp.trivia-creative-writing-n5", instance)
+
+        self.assertIn("web.search and web.fetch", prompt)
+        self.assertFalse(any(alias in prompt for aliases in instance["answers"] for alias in aliases))
+
+        policy_path = Path(__file__).parents[1] / "experiments" / "spp" / "config" / "roy-workspace.json"
+        policy = json.loads(policy_path.read_text(encoding="utf-8"))
+        self.assertEqual(policy["tools"]["approval"]["readOnly"], "deny")
+        self.assertEqual(
+            policy["tools"]["approval"]["overrides"],
+            {"web.search": "auto", "web.fetch": "auto"},
+        )
+        self.assertTrue(policy["tools"]["web"]["enabled"])
+        self.assertTrue(policy["tools"]["executionLoop"]["enabled"])
 
     def test_codenames_keeps_spymaster_targets_out_of_guesser_prompt(self) -> None:
         instance = load_instances("spp.codenames-collaborative")[0]

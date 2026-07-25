@@ -72,9 +72,11 @@ the board. This preserves the original collaboration boundary and prevents targe
 leakage through Roy memory or execution cache.
 
 The workspace policy enables automatic recursive delegation, formal teams, ToM,
-feedback traces, and persistent execution caches. Filesystem, shell, and web tools
-are denied because these benchmark tasks need only model reasoning; third-party
-dataset text is treated as untrusted input.
+feedback traces, and persistent execution caches. Filesystem, shell, and mutation
+tools remain denied because third-party dataset text is treated as untrusted input.
+Trivia tasks may use Roy's public-network-safe `web.search` and `web.fetch` tools;
+only those two read-only tools are auto-approved. This lets factual answers be
+grounded before story synthesis without exposing the host workspace or shell.
 
 ## Result interpretation
 

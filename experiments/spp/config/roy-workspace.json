@@ -101,13 +101,27 @@
       "readOnly": "deny",
       "write": "deny",
       "execute": "deny",
-      "overrides": {}
+      "overrides": {
+        "web.search": "auto",
+        "web.fetch": "auto"
+      }
     },
     "web": {
-      "enabled": false
+      "enabled": true,
+      "searchProvider": "auto",
+      "timeoutMs": 15000,
+      "maxResults": 5,
+      "maxContentChars": 12000,
+      "allowHttp": false
     },
     "executionLoop": {
-      "enabled": false
+      "enabled": true,
+      "maxRounds": 6,
+      "maxCallsPerRun": 10,
+      "maxConsecutiveFailures": 2,
+      "maxWallClockMs": 120000,
+      "maxFetchesAfterSearch": 2,
+      "llmReplanning": true
     }
   },
   "teams": {
