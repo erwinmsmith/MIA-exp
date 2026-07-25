@@ -41,12 +41,18 @@ Run one item first:
 
 ```bash
 ./scripts/run-spp-roy.sh spp.logic-grid-puzzle \
-  --start 0 --limit 1 --budget 30000 --timeout 1200
+  --start 0 --limit 1 --timeout 1200
 ```
 
 Then expand the same command to a complete split by changing `--limit`. A unique
 ignored directory is created under `results/spp/<benchmark>/<timestamp>/` unless
 `--output` is supplied.
+
+SPP runs leave Roy's token market unlimited by default. This preserves complete
+reasoning, synthesis, continuation, and acceptance-repair cycles while still
+recording actual provider usage. Pass `--budget N` only for an intentional
+budget-ablation experiment; the selected mode and value are recorded in
+`run.json`.
 
 An output directory that already contains `run.json` or `items.jsonl` is rejected
 to prevent records from separate runs or commits being mixed accidentally.

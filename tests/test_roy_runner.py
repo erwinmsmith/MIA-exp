@@ -64,6 +64,11 @@ class DotenvTests(unittest.TestCase):
                     {"type": "root.execution.closure.unmet"},
                     {"type": "root.acceptance.audit.completed"},
                     {"type": "root.acceptance.audit.unmet"},
+                    {"type": "root.response.acceptance.audit.started"},
+                    {"type": "root.response.acceptance.unmet"},
+                    {"type": "root.response.acceptance.repair.completed"},
+                    {"type": "llm.stream.continuation.started"},
+                    {"type": "llm.stream.continuation.completed"},
                     {"type": "root.execution.time_budget.allocated"},
                     {"type": "root.execution.time_budget.exhausted"},
                     {"type": "agent.output.tool_intent.recovery.completed"},
@@ -109,6 +114,9 @@ class DotenvTests(unittest.TestCase):
         self.assertEqual(telemetry["executionClosureUnmet"], 1)
         self.assertEqual(telemetry["acceptanceAuditsCompleted"], 1)
         self.assertEqual(telemetry["acceptanceAuditsUnmet"], 1)
+        self.assertEqual(telemetry["responseAcceptanceAudits"], 1)
+        self.assertEqual(telemetry["responseAcceptanceUnmet"], 1)
+        self.assertEqual(telemetry["responseAcceptanceRepairsCompleted"], 1)
         self.assertEqual(telemetry["executionTimeBudgetAllocations"], 1)
         self.assertEqual(telemetry["executionTimeBudgetExhausted"], 1)
         self.assertEqual(telemetry["toolIntentRecoveriesCompleted"], 1)
@@ -124,6 +132,9 @@ class DotenvTests(unittest.TestCase):
         self.assertEqual(telemetry["teamSynthesisRecoveries"], 1)
         self.assertEqual(telemetry["outputContractRepairEvents"], 2)
         self.assertEqual(telemetry["truncatedStreams"], 1)
+        self.assertEqual(telemetry["streamContinuationsStarted"], 1)
+        self.assertEqual(telemetry["streamContinuationsCompleted"], 1)
+        self.assertEqual(telemetry["streamContinuationsFailed"], 0)
 
     def test_failed_process_preserves_its_diagnostic_invocation(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -184,6 +195,43 @@ class DotenvTests(unittest.TestCase):
         self.assertEqual(invocation.telemetry["turnRecoveryAttempts"], 3)
         self.assertEqual(invocation.telemetry["turnRetryEvents"], 2)
         self.assertEqual(invocation.telemetry["turnFailureEvents"], 1)
+
+    def test_omits_budget_flag_when_runtime_budget_is_unlimited(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            bundle = root / "roy-run.mjs"
+            policy = root / "policy.json"
+            artifact = root / "raw" / "roy.json"
+            bundle.write_text("// bundle", encoding="utf-8")
+            policy.write_text("{}\n", encoding="utf-8")
+            artifact.parent.mkdir()
+            artifact.write_text(
+                '{"status":"completed","result":{"finalResponse":"done"},"events":[],"messages":[]}\n',
+                encoding="utf-8",
+            )
+
+            with patch(
+                "mia_exp.roy_runner.subprocess.run",
+                return_value=CompletedProcess(
+                    args=["node"],
+                    returncode=0,
+                    stdout="",
+                    stderr="",
+                ),
+            ) as run:
+                invocation = run_roy(
+                    "Solve the task.",
+                    workspace=root / "workspace",
+                    artifact_path=artifact,
+                    session_id="unlimited-run",
+                    timeout_seconds=10,
+                    bundle_path=bundle,
+                    policy_path=policy,
+                )
+
+        command = run.call_args.args[0]
+        self.assertNotIn("--budget", command)
+        self.assertEqual(invocation.response, "done")
 
 
 if __name__ == "__main__":

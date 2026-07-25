@@ -57,7 +57,11 @@ def _parser() -> argparse.ArgumentParser:
     run.add_argument("benchmark")
     run.add_argument("--start", type=int, default=0)
     run.add_argument("--limit", type=int, default=1)
-    run.add_argument("--budget", type=int, default=30000)
+    run.add_argument(
+        "--budget",
+        type=int,
+        help="optional explicit per-invocation token cap; omitted by default",
+    )
     run.add_argument("--timeout", type=int, default=1200)
     run.add_argument("--output", type=Path)
     return parser

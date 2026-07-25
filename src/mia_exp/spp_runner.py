@@ -74,7 +74,7 @@ def run_benchmark(
     *,
     indices: Iterable[int],
     output_dir: Path | None = None,
-    budget: int = 30000,
+    budget: int | None = None,
     timeout_seconds: int = 1200,
 ) -> Path:
     """Run selected items and write append-safe raw records plus a summary."""
@@ -112,6 +112,7 @@ def run_benchmark(
         "source": {"url": spec.source_url, "commit": spec.source_commit},
         "primaryMetric": spec.primary_metric,
         "budgetPerRoyInvocation": budget,
+        "budgetMode": "explicit_limit" if budget is not None else "runtime_unlimited",
         "timeoutSeconds": timeout_seconds,
         "indices": selected,
         **identity,

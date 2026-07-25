@@ -1,9 +1,10 @@
 {
-  "version": 13,
+  "version": 15,
   "traceEvents": true,
   "memoryUpdates": "suggest",
   "llm": {
     "streamMaxAttempts": 3,
+    "streamContinuationMaxSegments": 4,
     "jsonMaxAttempts": 2,
     "turnMaxAttempts": 3,
     "retryInitialDelayMs": 250,

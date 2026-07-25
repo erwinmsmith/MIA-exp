@@ -203,6 +203,18 @@ def _telemetry(artifact: dict[str, Any]) -> dict[str, Any]:
         "acceptanceAuditsUnmet": event_counts.get(
             "root.acceptance.audit.unmet", 0
         ),
+        "responseAcceptanceAudits": event_counts.get(
+            "root.response.acceptance.audit.started", 0
+        ),
+        "responseAcceptanceUnmet": event_counts.get(
+            "root.response.acceptance.unmet", 0
+        ),
+        "responseAcceptanceRepairsCompleted": event_counts.get(
+            "root.response.acceptance.repair.completed", 0
+        ),
+        "responseAcceptanceRepairsUnmet": event_counts.get(
+            "root.response.acceptance.repair.unmet", 0
+        ),
         "executionTimeBudgetAllocations": event_counts.get(
             "root.execution.time_budget.allocated", 0
         ),
@@ -251,6 +263,16 @@ def _telemetry(artifact: dict[str, Any]) -> dict[str, Any]:
             count for name, count in event_counts.items() if "fallback" in name
         ),
         "truncatedStreams": event_counts.get("llm.stream.truncated", 0),
+        "streamContinuationsStarted": event_counts.get(
+            "llm.stream.continuation.started", 0
+        ),
+        "streamContinuationsCompleted": event_counts.get(
+            "llm.stream.continuation.completed", 0
+        ),
+        "streamContinuationsFailed": event_counts.get(
+            "llm.stream.continuation.failed", 0
+        )
+        + event_counts.get("llm.stream.continuation.exhausted", 0),
         "eventTypes": dict(sorted(event_counts.items())),
         "usage": (result.get("usage") or {}).get("total") or {},
     }
@@ -262,8 +284,8 @@ def run_roy(
     workspace: Path,
     artifact_path: Path,
     session_id: str,
-    budget: int,
     timeout_seconds: int,
+    budget: int | None = None,
     bundle_path: Path = DEFAULT_BUNDLE,
     policy_path: Path = DEFAULT_POLICY,
     env_file: Path | None = None,
@@ -294,11 +316,11 @@ def run_roy(
         str(prompt_path),
         "--session-id",
         session_id,
-        "--budget",
-        str(budget),
         "--output",
         str(artifact_path),
     ]
+    if budget is not None:
+        command.extend(["--budget", str(budget)])
     started = time.monotonic()
     execution = subprocess.run(
         command,
