@@ -215,6 +215,12 @@ def _telemetry(artifact: dict[str, Any]) -> dict[str, Any]:
         "responseAcceptanceRepairsUnmet": event_counts.get(
             "root.response.acceptance.repair.unmet", 0
         ),
+        "responseAcceptanceReferenceRuns": event_counts.get(
+            "root.response.acceptance.references.started", 0
+        ),
+        "responseAcceptanceReferenceFailures": event_counts.get(
+            "root.response.acceptance.references.failed", 0
+        ),
         "executionTimeBudgetAllocations": event_counts.get(
             "root.execution.time_budget.allocated", 0
         ),

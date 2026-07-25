@@ -67,6 +67,8 @@ class DotenvTests(unittest.TestCase):
                     {"type": "root.response.acceptance.audit.started"},
                     {"type": "root.response.acceptance.unmet"},
                     {"type": "root.response.acceptance.repair.completed"},
+                    {"type": "root.response.acceptance.references.started"},
+                    {"type": "root.response.acceptance.references.completed"},
                     {"type": "llm.stream.continuation.started"},
                     {"type": "llm.stream.continuation.completed"},
                     {"type": "root.execution.time_budget.allocated"},
@@ -120,6 +122,8 @@ class DotenvTests(unittest.TestCase):
         self.assertEqual(telemetry["responseAcceptanceAudits"], 1)
         self.assertEqual(telemetry["responseAcceptanceUnmet"], 1)
         self.assertEqual(telemetry["responseAcceptanceRepairsCompleted"], 1)
+        self.assertEqual(telemetry["responseAcceptanceReferenceRuns"], 1)
+        self.assertEqual(telemetry["responseAcceptanceReferenceFailures"], 0)
         self.assertEqual(telemetry["executionTimeBudgetAllocations"], 1)
         self.assertEqual(telemetry["executionTimeBudgetExhausted"], 1)
         self.assertEqual(telemetry["toolIntentRecoveriesCompleted"], 1)
