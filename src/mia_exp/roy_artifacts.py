@@ -128,6 +128,13 @@ def summarize_roy_artifact(path: Path) -> dict[str, Any]:
     recursive_actors = [
         actor for actor in actors if int(actor.get("generation") or 0) >= 2
     ]
+    root_agent_id = tree.get("rootAgentId") or "root"
+    derived_agents = [
+        actor
+        for actor in actors
+        if actor.get("kind") == "agent" and actor.get("id") != root_agent_id
+    ]
+    derived_teams = [actor for actor in actors if actor.get("kind") == "team"]
     return {
         "artifact": str(path),
         "sessionId": payload.get("sessionId"),
@@ -135,9 +142,11 @@ def summarize_roy_artifact(path: Path) -> dict[str, Any]:
         "correlationId": result.get("correlationId"),
         "decision": (result.get("decision") or {}).get("action"),
         "treeStatus": tree.get("status"),
-        "rootAgentId": tree.get("rootAgentId"),
+        "rootAgentId": root_agent_id,
         "stepCount": len(steps),
         "actorCount": len(actors),
+        "derivedAgentCount": len(derived_agents),
+        "derivedTeamCount": len(derived_teams),
         "maxActorGeneration": max(
             (int(actor.get("generation") or 0) for actor in actors),
             default=0,
@@ -181,8 +190,13 @@ def summarize_roy_artifacts(paths: Iterable[Path]) -> dict[str, Any]:
             ),
             "executionSteps": sum(item["stepCount"] for item in artifacts),
             "derivedActors": sum(
-                max(item["actorCount"] - 1, 0) for item in artifacts
+                item["derivedAgentCount"] + item["derivedTeamCount"]
+                for item in artifacts
             ),
+            "derivedAgents": sum(
+                item["derivedAgentCount"] for item in artifacts
+            ),
+            "derivedTeams": sum(item["derivedTeamCount"] for item in artifacts),
             "recursiveActors": sum(
                 len(item["recursiveActorIds"]) for item in artifacts
             ),
@@ -209,7 +223,8 @@ def render_roy_summary_markdown(summary: dict[str, Any]) -> str:
         (
             f"Artifacts: {aggregate['artifactCount']}; "
             f"steps: {aggregate['executionSteps']}; "
-            f"derived actors: {aggregate['derivedActors']}; "
+            f"derived agents: {aggregate['derivedAgents']}; "
+            f"derived teams: {aggregate['derivedTeams']}; "
             f"recursive actors: {aggregate['recursiveActors']}; "
             f"max generation: {aggregate['maxActorGeneration']}."
         ),

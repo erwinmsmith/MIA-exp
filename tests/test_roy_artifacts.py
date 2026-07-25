@@ -117,6 +117,8 @@ class RoyArtifactSummaryTests(unittest.TestCase):
         self.assertEqual(discovered, [artifact.resolve()])
         self.assertEqual(summary["aggregate"]["artifactCount"], 1)
         self.assertEqual(summary["aggregate"]["derivedActors"], 2)
+        self.assertEqual(summary["aggregate"]["derivedAgents"], 1)
+        self.assertEqual(summary["aggregate"]["derivedTeams"], 1)
         self.assertEqual(summary["aggregate"]["recursiveActors"], 1)
         self.assertEqual(summary["aggregate"]["maxActorGeneration"], 2)
         self.assertEqual(summary["aggregate"]["inputTokens"], 100)
