@@ -240,6 +240,23 @@ class RoyLHTBSecretInjectionTests(unittest.IsolatedAsyncioTestCase):
             verifier_upload[2],
         )
 
+    async def test_local_verifier_command_uses_checked_out_task_entrypoint(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            trial_dir = Path(directory) / "langchain-version-migration__trial"
+            logs_dir = trial_dir / "agent"
+            logs_dir.mkdir(parents=True)
+            agent = RoyLHTBAgent(logs_dir=logs_dir)
+
+            command = agent._local_verifier_command()
+
+        self.assertEqual(
+            command,
+            "python -m pytest -p no:cacheprovider -q "
+            ".roy/official-verifier/test_outputs.py",
+        )
+
     async def test_truncated_harbor_trial_id_resolves_full_task_verifier(
         self,
     ) -> None:

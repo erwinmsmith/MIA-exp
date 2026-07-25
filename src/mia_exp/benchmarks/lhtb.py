@@ -276,6 +276,14 @@ class RoyLHTBAgent(BaseAgent):
     def _local_verifier_command(self) -> str | None:
         """Return the task's mounted verifier entrypoint after Harbor has exposed it."""
 
+        local_tests = LHTB_TASKS_ROOT / self._task_name() / "tests"
+        if (local_tests / "test_outputs.py").is_file():
+            return (
+                "python -m pytest -p no:cacheprovider -q "
+                ".roy/official-verifier/test_outputs.py"
+            )
+        if (local_tests / "grade.py").is_file():
+            return "python .roy/official-verifier/grade.py"
         verifier_dir = self.logs_dir.parent / "verifier"
         if (verifier_dir / "pytest.log").is_file():
             return (
@@ -335,6 +343,7 @@ class RoyLHTBAgent(BaseAgent):
         if self._round > 1:
             task_name = self._task_name()
             local_tests = LHTB_TASKS_ROOT / task_name / "tests"
+            expected_remote_files: list[str] = []
             for filename in ("test_outputs.py", "grade.py"):
                 source = local_tests / filename
                 if source.is_file():
@@ -342,6 +351,9 @@ class RoyLHTBAgent(BaseAgent):
                         source,
                         f"{self.workspace}/.roy/official-verifier/{filename}",
                     )
+                    expected_remote_files.append(filename)
+        else:
+            expected_remote_files = []
         mirrored = await environment.exec(
             command=(
                 "set -eu; "
@@ -361,6 +373,21 @@ class RoyLHTBAgent(BaseAgent):
                 "Could not mirror the mounted verifier into Roy's workspace: "
                 f"{mirrored.stderr or mirrored.stdout or 'unknown copy error'}"
             )
+        if expected_remote_files:
+            expected_checks = " && ".join(
+                f"test -f {shlex.quote(f'{self.workspace}/.roy/official-verifier/{filename}')}"
+                for filename in expected_remote_files
+            )
+            verified = await environment.exec(
+                command=expected_checks,
+                user="root",
+                timeout_sec=30,
+            )
+            if verified.return_code != 0:
+                raise RuntimeError(
+                    "Checked-out official verifier upload did not materialize "
+                    f"inside the task workspace: {', '.join(expected_remote_files)}"
+                )
 
     def _build_instruction(self, instruction: str) -> str:
         content = (
