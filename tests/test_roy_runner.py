@@ -72,6 +72,9 @@ class DotenvTests(unittest.TestCase):
                     {"type": "root.execution.time_budget.allocated"},
                     {"type": "root.execution.time_budget.exhausted"},
                     {"type": "agent.output.tool_intent.recovery.completed"},
+                    {"type": "agent.output.empty.recovery.started"},
+                    {"type": "agent.output.empty.recovery.completed"},
+                    {"type": "agent.output.action_validation.recovery.started"},
                     {
                         "type": "tool.error",
                         "data": {"error": "Command timed out after 1000ms"},
@@ -120,6 +123,10 @@ class DotenvTests(unittest.TestCase):
         self.assertEqual(telemetry["executionTimeBudgetAllocations"], 1)
         self.assertEqual(telemetry["executionTimeBudgetExhausted"], 1)
         self.assertEqual(telemetry["toolIntentRecoveriesCompleted"], 1)
+        self.assertEqual(telemetry["emptyOutputRecoveriesStarted"], 1)
+        self.assertEqual(telemetry["emptyOutputRecoveriesCompleted"], 1)
+        self.assertEqual(telemetry["emptyOutputRecoveriesFailed"], 0)
+        self.assertEqual(telemetry["actionValidationRecoveries"], 1)
         self.assertEqual(telemetry["toolErrors"], 1)
         self.assertEqual(telemetry["toolTimeouts"], 1)
         self.assertEqual(telemetry["llmRequestTimeouts"], 2)

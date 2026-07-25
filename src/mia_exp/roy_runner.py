@@ -227,6 +227,18 @@ def _telemetry(artifact: dict[str, Any]) -> dict[str, Any]:
         "toolIntentRecoveriesFailed": event_counts.get(
             "agent.output.tool_intent.recovery.failed", 0
         ),
+        "emptyOutputRecoveriesStarted": event_counts.get(
+            "agent.output.empty.recovery.started", 0
+        ),
+        "emptyOutputRecoveriesCompleted": event_counts.get(
+            "agent.output.empty.recovery.completed", 0
+        ),
+        "emptyOutputRecoveriesFailed": event_counts.get(
+            "agent.output.empty.recovery.failed", 0
+        ),
+        "actionValidationRecoveries": event_counts.get(
+            "agent.output.action_validation.recovery.started", 0
+        ),
         "toolErrors": len(tool_errors),
         "toolTimeouts": len(tool_timeouts),
         "llmRequestTimeouts": len(llm_request_timeouts),
