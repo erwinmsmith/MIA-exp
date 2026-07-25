@@ -33,5 +33,25 @@ if [[ ! -x .venv/bin/harbor ]]; then
 fi
 
 export DOCKER_DEFAULT_PLATFORM="${DOCKER_DEFAULT_PLATFORM:-linux/amd64}"
+if ! docker compose version >/dev/null 2>&1; then
+  echo "error: Docker Compose v2 is required" >&2
+  exit 1
+fi
+
+job_name="lhtb-oracle-smoke-$(date -u +%Y%m%dT%H%M%SZ)-$$"
+job_dir="$repo_root/jobs/$job_name"
 cd benchmarks/LHTB
-"$repo_root/.venv/bin/harbor" run -c configs/examples/oracle_smoke.yaml
+"$repo_root/.venv/bin/harbor" run \
+  -c configs/examples/oracle_smoke.yaml \
+  --job-name "$job_name" \
+  --jobs-dir "$repo_root/jobs"
+"$repo_root/.venv/bin/mia-bench" harbor-summary \
+  "$job_dir" \
+  --threshold 0.95 \
+  --k 1 \
+  --strict \
+  --require-tasks 3 \
+  --require-all-pass-at 1 \
+  --output "$job_dir/mia-summary.json" \
+  >/dev/null
+echo "LHTB oracle smoke passed: $job_dir"

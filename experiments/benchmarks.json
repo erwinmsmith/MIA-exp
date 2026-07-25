@@ -17,7 +17,12 @@
       "exactMatchRate",
       "parseRate"
     ],
-    "crossBenchmarkAggregation": "macro mean of each benchmark's normalized score"
+    "crossBenchmarkAggregation": "macro mean of each benchmark's normalized score",
+    "samplingMetrics": {
+      "passAtK": "mean per-task unbiased probability of at least one score meeting the benchmark success threshold in k attempts",
+      "requiredK": [1, 5],
+      "insufficientAttempts": null
+    }
   },
   "benchmarks": [
     {
@@ -37,7 +42,8 @@
         "name": "verifier_reward",
         "earned": "Harbor verifier reward",
         "possible": 1,
-        "range": [0.0, 1.0]
+        "range": [0.0, 1.0],
+        "successThreshold": 0.95
       }
     },
     {

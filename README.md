@@ -35,8 +35,8 @@ are not part of the public repository.
 
 ## Setup
 
-Prerequisites: Git, Node.js 20+, Python 3.11+, `uv`, Git LFS, and a running Docker
-daemon.
+Prerequisites: Git, Node.js 20+, Python 3.11+, `uv`, Git LFS, Docker Compose v2,
+and a running Docker daemon.
 
 ```bash
 git clone --recurse-submodules https://github.com/erwinmsmith/MIA-exp.git
@@ -101,6 +101,7 @@ Every reported result should record:
 - raw Harbor job output;
 - Roy execution tree, events, messages, and trajectory;
 - verifier reward rather than the agent's self-reported completion status.
+- threshold-aware `pass@1`, `pass@5`, and any configured `pass@k`.
 
 ## Common score contract
 
@@ -118,3 +119,8 @@ retains both numeric values. Runs also report `score`, `meanItemScore`,
 Cross-benchmark comparisons use a macro mean of each benchmark's normalized score,
 so a larger dataset or a Trivia N=10 item cannot silently dominate another
 benchmark. Raw item records remain authoritative.
+
+Repeated trials use the standard unbiased pass@k estimator per task and then macro
+average across tasks. LHTB counts a trial as passing when the official Harbor
+verifier reward is at least `0.95`. A missing `pass@k` value means the run did not
+contain at least `k` attempts for every task; it is never treated as zero or one.

@@ -9,6 +9,7 @@ from pathlib import Path
 from .benchmarks.contracts import aggregate_benchmark_summaries
 from .benchmarks.registry import get_benchmark, iter_benchmarks, validate_data
 from .benchmarks.spp import load_instances, render_prompt, score_response
+from .harbor_results import write_harbor_summary
 from .spp_runner import run_benchmark
 
 
@@ -39,6 +40,18 @@ def _parser() -> argparse.ArgumentParser:
         help="macro-average one summary per benchmark",
     )
     aggregate.add_argument("summaries", type=Path, nargs="+")
+
+    harbor_summary = commands.add_parser(
+        "harbor-summary",
+        help="normalize a Harbor job and compute threshold-aware pass@k",
+    )
+    harbor_summary.add_argument("job_dir", type=Path)
+    harbor_summary.add_argument("--threshold", type=float, default=0.95)
+    harbor_summary.add_argument("--k", type=int, action="append")
+    harbor_summary.add_argument("--output", type=Path)
+    harbor_summary.add_argument("--strict", action="store_true")
+    harbor_summary.add_argument("--require-tasks", type=int)
+    harbor_summary.add_argument("--require-all-pass-at", type=int)
 
     run = commands.add_parser("run", help="run selected SPP items with Roy")
     run.add_argument("benchmark")
@@ -81,6 +94,37 @@ def main() -> int:
         ]
         print(json.dumps(aggregate_benchmark_summaries(summaries), indent=2))
         return 0
+
+    if args.command == "harbor-summary":
+        k_values = args.k or [1, 5]
+        if args.require_all_pass_at is not None:
+            k_values = sorted(set([*k_values, args.require_all_pass_at]))
+        output = args.output or args.job_dir / "mia-summary.json"
+        summary = write_harbor_summary(
+            args.job_dir,
+            output,
+            success_threshold=args.threshold,
+            k_values=k_values,
+        )
+        print(json.dumps(summary, indent=2, ensure_ascii=False))
+        aggregate = summary["aggregate"]
+        valid = True
+        if args.strict:
+            valid = (
+                aggregate["completedTrials"] == aggregate["totalTrials"]
+                and aggregate["erroredTrials"] == 0
+                and aggregate["cancelledTrials"] == 0
+                and aggregate["pendingTrials"] == 0
+                and aggregate["missingTrialResults"] == 0
+            )
+        if args.require_tasks is not None:
+            valid = valid and aggregate["taskCount"] == args.require_tasks
+        if args.require_all_pass_at is not None:
+            observed = aggregate["allTasksObservedPassAtK"].get(
+                str(args.require_all_pass_at)
+            )
+            valid = valid and observed is True
+        return 0 if valid else 1
 
     spec = get_benchmark(args.benchmark)
     instances = load_instances(spec)

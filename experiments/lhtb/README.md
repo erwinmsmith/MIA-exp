@@ -15,7 +15,10 @@ make smoke-lhtb
 ```
 
 The oracle smoke proves Docker image build, task setup, verifier execution, and the
-LHTB Harbor patch without spending model tokens.
+LHTB Harbor patch without spending model tokens. It fails if Harbor reports any
+exception, cancelled or pending trial, missing trial result, fewer than three
+tasks, or an oracle reward below `0.95`; Harbor's process exit code alone is not
+considered a successful smoke.
 
 Image preparation reads each task's declared `environment.docker_image`, pulls the
 official `linux/amd64` image, requires a registry digest, and probes `/app` and
@@ -76,6 +79,24 @@ reported as an official benchmark result.
 `LHTB_ROY_CONFIG` selects the Harbor config and `LHTB_ROY_TASKS` is the
 comma-separated image-preparation set. Raw jobs remain ignored; publish only
 deliberately summarized, secret-free results.
+
+Normalize any completed Harbor job and calculate threshold-aware sampling metrics:
+
+```bash
+mia-bench harbor-summary jobs/<job> \
+  --threshold 0.95 \
+  --k 1 \
+  --k 5 \
+  --output jobs/<job>/mia-summary.json
+```
+
+`pass@1` and `pass@5` are standard unbiased estimators computed per task and
+macro-averaged. The summary also records the observed first-k outcome for every
+task, raw rewards, exceptions, tokens, cost, and whether every checked-out LHTB
+task reached reward `>= 0.95`. A requested k is explicitly `null` when any task
+has fewer than k attempts. The release target is all three current tasks passing
+on the first attempt; five-attempt runs are used to report `pass@5` after that
+single-attempt baseline is stable.
 
 To compare Roy revisions without replacing the default bundle used by another
 running benchmark, build and select a versioned artifact:

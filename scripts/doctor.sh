@@ -34,6 +34,11 @@ if docker info >/dev/null 2>&1; then
 else
   fail "Docker daemon is not running"
 fi
+if docker compose version >/dev/null 2>&1; then
+  ok "Docker Compose v2 available"
+else
+  fail "Docker Compose v2 is unavailable"
+fi
 
 if [[ -x .venv/bin/harbor ]]; then ok "LHTB Harbor installed in .venv"; else fail "Harbor missing; run make bootstrap"; fi
 if [[ -d core/Roy/node_modules ]]; then ok "Roy dependencies installed"; else fail "Roy dependencies missing; run make bootstrap"; fi
