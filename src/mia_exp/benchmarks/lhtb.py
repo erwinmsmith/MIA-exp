@@ -346,11 +346,36 @@ class RoyLHTBAgent(BaseAgent):
         return trial_prefix
 
     async def _mirror_official_verifier(self, environment: BaseEnvironment) -> None:
-        """Expose mounted verifier sources to Roy's workspace-scoped read tools."""
+        """Expose the complete verifier bundle to workspace-scoped Roy tools."""
 
         workspace = shlex.quote(self.workspace)
+        mirror_root = f"{self.workspace}/.roy/official-verifier"
+        task_name = self._task_name()
+        local_tests = LHTB_TASKS_ROOT / task_name / "tests"
+        checked_out_files = (
+            sorted(
+                path
+                for path in local_tests.rglob("*")
+                if path.is_file()
+                and "__pycache__" not in path.parts
+                and path.suffix != ".pyc"
+            )
+            if self._round > 1 and local_tests.is_dir()
+            else []
+        )
+        mirror_directories = sorted(
+            {
+                Path(mirror_root),
+                *(
+                    Path(mirror_root) / source.relative_to(local_tests).parent
+                    for source in checked_out_files
+                ),
+            },
+            key=lambda path: (len(path.parts), str(path)),
+        )
         prepared = await environment.exec(
-            command=f"mkdir -p {workspace}/.roy/official-verifier",
+            command="mkdir -p "
+            + " ".join(shlex.quote(str(path)) for path in mirror_directories),
             user="root",
             timeout_sec=30,
         )
@@ -359,30 +384,25 @@ class RoyLHTBAgent(BaseAgent):
                 "Could not prepare Roy's verifier mirror directory: "
                 f"{prepared.stderr or prepared.stdout or 'unknown mkdir error'}"
             )
-        if self._round > 1:
-            task_name = self._task_name()
-            local_tests = LHTB_TASKS_ROOT / task_name / "tests"
-            expected_remote_files: list[str] = []
-            for filename in ("test_outputs.py", "grade.py"):
-                source = local_tests / filename
-                if source.is_file():
-                    await environment.upload_file(
-                        source,
-                        f"{self.workspace}/.roy/official-verifier/{filename}",
-                    )
-                    expected_remote_files.append(filename)
-        else:
-            expected_remote_files = []
+        expected_remote_files: list[str] = []
+        for source in checked_out_files:
+            relative = source.relative_to(local_tests)
+            target = f"{mirror_root}/{relative.as_posix()}"
+            await environment.upload_file(source, target)
+            expected_remote_files.append(relative.as_posix())
         mirrored = await environment.exec(
             command=(
                 "set -eu; "
-                "for name in test_outputs.py grade.py; do "
-                "if [ -f \"/tests/$name\" ]; then "
-                f"cp -f \"/tests/$name\" {workspace}/.roy/official-verifier/; "
+                "if [ -d /tests ]; then "
+                f"cp -a /tests/. {workspace}/.roy/official-verifier/; "
                 "fi; "
-                "done; "
-                f"find {workspace}/.roy/official-verifier -maxdepth 1 "
-                "-type f -exec chmod 444 {} +"
+                "if [ ! -e /tests ]; then "
+                f"ln -s {workspace}/.roy/official-verifier /tests; "
+                "fi; "
+                f"find {workspace}/.roy/official-verifier "
+                "-type f -exec chmod 444 {} +; "
+                f"find {workspace}/.roy/official-verifier "
+                "-type d -exec chmod 555 {} +"
             ),
             user="root",
             timeout_sec=30,
@@ -394,7 +414,7 @@ class RoyLHTBAgent(BaseAgent):
             )
         if expected_remote_files:
             expected_checks = " && ".join(
-                f"test -f {shlex.quote(f'{self.workspace}/.roy/official-verifier/{filename}')}"
+                f"test -f {shlex.quote(f'{mirror_root}/{filename}')}"
                 for filename in expected_remote_files
             )
             verified = await environment.exec(
@@ -404,7 +424,7 @@ class RoyLHTBAgent(BaseAgent):
             )
             if verified.return_code != 0:
                 raise RuntimeError(
-                    "Checked-out official verifier upload did not materialize "
+                    "Checked-out official verifier bundle did not materialize "
                     f"inside the task workspace: {', '.join(expected_remote_files)}"
                 )
 

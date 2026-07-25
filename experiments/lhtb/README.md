@@ -126,11 +126,13 @@ execution ledger. Roy links the new execution path to the previous open path and
 continues modification, verification, and acceptance work without rebuilding the
 initial team. Once Harbor has mounted `/tests`, the adapter also supplies the
 task's actual local verifier entrypoint so repair and re-verification can close
-inside the same Roy phase. The readable verifier entrypoint is mirrored under
-`.roy/official-verifier/`, allowing Roy's workspace-scoped filesystem tools to
-inspect the assertions that are already available to terminal-based agents.
-From the second round onward, the adapter uploads the same read-only verifier
-source from the checked-out LHTB task, avoiding dependence on Harbor's later
-`/tests` injection timing.
+inside the same Roy phase. The complete readable verifier bundle is mirrored
+under `.roy/official-verifier/`, including fixtures and helper files, allowing
+Roy's workspace-scoped filesystem tools to inspect and execute the assertions
+that are already available to terminal-based agents. If Harbor has removed its
+temporary `/tests` mount for a continuation, the adapter links `/tests` to that
+read-only mirror so absolute fixture paths still resolve. From the second round
+onward, the adapter uploads the same checked-out verifier bundle, avoiding
+dependence on Harbor's later `/tests` injection timing.
 
 The concrete Harbor config and adapter remain in this outer repository.

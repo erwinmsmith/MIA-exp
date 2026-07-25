@@ -172,10 +172,16 @@ class RoyLHTBSecretInjectionTests(unittest.IsolatedAsyncioTestCase):
         mirror_command = next(
             command
             for command, _kwargs in environment.exec_calls
-            if 'cp -f "/tests/$name"' in command
+            if "cp -a /tests/." in command
         )
-        self.assertIn("test_outputs.py grade.py", mirror_command)
-        self.assertIn('cp -f "/tests/$name"', mirror_command)
+        self.assertIn(
+            "cp -a /tests/. /app/.roy/official-verifier/",
+            mirror_command,
+        )
+        self.assertIn(
+            "ln -s /app/.roy/official-verifier /tests",
+            mirror_command,
+        )
         self.assertIn(". /tmp/roy-runtime-env-1.sh", run_command)
         self.assertIn("rm -f /tmp/roy-runtime-env-1.sh", run_command)
         run_kwargs = next(
@@ -279,6 +285,35 @@ class RoyLHTBSecretInjectionTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn(
             "def test_cli_creates_all_required_artifacts",
             verifier_upload[2],
+        )
+
+    async def test_continuation_uploads_verifier_fixtures_recursively(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            trial_dir = Path(directory) / "langchain-version-migration__trial"
+            logs_dir = trial_dir / "agent"
+            logs_dir.mkdir(parents=True)
+            agent = RoyLHTBAgent(logs_dir=logs_dir)
+            agent._round = 2
+            environment = FakeEnvironment()
+
+            await agent._mirror_official_verifier(environment)  # type: ignore[arg-type]
+
+        fixture_upload = next(
+            upload
+            for upload in environment.uploads
+            if upload[1].endswith(
+                "/.roy/official-verifier/fixtures/golden/answers.jsonl"
+            )
+        )
+        self.assertIn('"answer"', fixture_upload[2])
+        mkdir_command = next(
+            command
+            for command, _kwargs in environment.exec_calls
+            if command.startswith("mkdir -p")
+        )
+        self.assertIn(
+            "/app/.roy/official-verifier/fixtures/golden",
+            mkdir_command,
         )
 
     async def test_local_verifier_command_uses_checked_out_task_entrypoint(
