@@ -253,7 +253,26 @@ class RoyLHTBAgent(BaseAgent):
 
     @staticmethod
     def _compact_verifier_feedback(filename: str, content: str) -> str:
-        """Bound noisy harness logs while preserving the causal failure frontier."""
+        """Keep causal verifier evidence and summarize successful installer plumbing."""
+
+        if filename == "install.log":
+            failure_lines = [
+                line.strip()
+                for line in content.splitlines()
+                if re.search(
+                    r"\b(?:error|failed|failure|traceback|exception|"
+                    r"no matching distribution|resolution impossible|"
+                    r"incompatible|conflict|could not|cannot)\b",
+                    line,
+                    re.IGNORECASE,
+                )
+            ]
+            if not failure_lines:
+                return (
+                    "Dependency installation completed without a reported failure; "
+                    "routine package-manager output is stored in install.log and "
+                    "omitted from the reasoning context."
+                )
 
         limits = {
             "reward.txt": 512,

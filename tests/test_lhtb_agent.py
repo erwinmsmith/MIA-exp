@@ -217,6 +217,25 @@ class RoyLHTBSecretInjectionTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("compacted", compacted)
         self.assertIn("ERROR final dependency failure", compacted)
 
+    async def test_successful_installer_output_is_not_replayed_as_repair_evidence(
+        self,
+    ) -> None:
+        content = "\n".join(
+            [
+                "Installing build dependencies: finished with status 'done'",
+                "Requirement already satisfied: jsonschema>=4.18",
+                "Successfully installed dq-audit-0.1.0",
+            ]
+        )
+
+        compacted = RoyLHTBAgent._compact_verifier_feedback(
+            "install.log",
+            content,
+        )
+
+        self.assertIn("completed without a reported failure", compacted)
+        self.assertNotIn("Requirement already satisfied", compacted)
+
     async def test_continuation_uploads_checked_out_verifier_into_workspace(
         self,
     ) -> None:
