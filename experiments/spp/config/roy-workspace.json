@@ -2,6 +2,13 @@
   "version": 13,
   "traceEvents": true,
   "memoryUpdates": "suggest",
+  "llm": {
+    "streamMaxAttempts": 3,
+    "jsonMaxAttempts": 2,
+    "turnMaxAttempts": 3,
+    "retryInitialDelayMs": 250,
+    "retryMaxDelayMs": 2000
+  },
   "delegation": {
     "enabled": true,
     "mode": "auto",
