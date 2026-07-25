@@ -51,7 +51,7 @@ class SPPAdapterTests(unittest.TestCase):
 
         self.assertIn("web.search and web.fetch", prompt)
         self.assertIn("Treat historical first/last claims as scope-sensitive", prompt)
-        self.assertIn("definition or scope conflicts", prompt)
+        self.assertIn("retain every materially different source scope and milestone", prompt)
         self.assertFalse(any(alias in prompt for aliases in instance["answers"] for alias in aliases))
 
         policy_path = Path(__file__).parents[1] / "experiments" / "spp" / "config" / "roy-workspace.json"
