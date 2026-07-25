@@ -156,6 +156,12 @@ class RoyLHTBSecretInjectionTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn('cp -f "/tests/$name"', mirror_command)
         self.assertIn(". /tmp/roy-runtime-env-1.sh", run_command)
         self.assertIn("rm -f /tmp/roy-runtime-env-1.sh", run_command)
+        run_kwargs = next(
+            kwargs
+            for command, kwargs in environment.exec_calls
+            if "/opt/roy/roy-run.mjs" in command
+        )
+        self.assertIsNone(run_kwargs["timeout_sec"])
 
     async def test_continuation_includes_changed_official_verifier_artifacts(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -233,6 +239,39 @@ class RoyLHTBSecretInjectionTests(unittest.IsolatedAsyncioTestCase):
             "def test_cli_creates_all_required_artifacts",
             verifier_upload[2],
         )
+
+    async def test_truncated_harbor_trial_id_resolves_full_task_verifier(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            trial_dir = Path(directory) / "document-table-layout-reconstruc__trial"
+            logs_dir = trial_dir / "agent"
+            logs_dir.mkdir(parents=True)
+            (trial_dir / "config.json").write_text(
+                json.dumps(
+                    {
+                        "task": {
+                            "path": str(
+                                Path(directory)
+                                / "document-table-layout-reconstruction"
+                            )
+                        }
+                    }
+                ),
+                encoding="utf-8",
+            )
+            agent = RoyLHTBAgent(logs_dir=logs_dir)
+            agent._round = 2
+            environment = FakeEnvironment()
+
+            await agent._mirror_official_verifier(environment)  # type: ignore[arg-type]
+
+        verifier_upload = next(
+            upload
+            for upload in environment.uploads
+            if upload[1].endswith("/.roy/official-verifier/grade.py")
+        )
+        self.assertIn("G_hidden_end_to_end_stress", verifier_upload[2])
 
     async def test_continuation_does_not_replay_unchanged_verifier_artifacts(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

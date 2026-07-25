@@ -11,8 +11,6 @@ environment:
 
 agents:
   - import_path: mia_exp.benchmarks.lhtb:RoyLHTBAgent
-    kwargs:
-      timeout_sec: 5400
 
 datasets:
   - path: ./benchmarks/LHTB/tasks

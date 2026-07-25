@@ -123,7 +123,7 @@ class RoyLHTBAgent(BaseAgent):
         node_archive_path: str | None = None,
         policy_path: str | None = None,
         workspace: str = "/app",
-        timeout_sec: int = 5400,
+        timeout_sec: int | None = None,
         token_budget: int | None = None,
         honor_external_deadline: bool = True,
         extra_env: dict[str, str] | None = None,
@@ -286,6 +286,38 @@ class RoyLHTBAgent(BaseAgent):
             return "python .roy/official-verifier/grade.py"
         return None
 
+    def _task_name(self) -> str:
+        """Resolve the full task name without relying on Harbor's truncated trial id."""
+
+        trial_config = self.logs_dir.parent / "config.json"
+        if trial_config.is_file():
+            try:
+                config = json.loads(trial_config.read_text(encoding="utf-8"))
+                task = config.get("task", {})
+                configured_name = task.get("name")
+                configured_path = task.get("path")
+                candidate = (
+                    configured_name
+                    if isinstance(configured_name, str) and configured_name
+                    else Path(configured_path).name
+                    if isinstance(configured_path, str) and configured_path
+                    else ""
+                )
+                if candidate and (LHTB_TASKS_ROOT / candidate).is_dir():
+                    return candidate
+            except (OSError, ValueError, TypeError):
+                pass
+
+        trial_prefix = self.logs_dir.parent.name.split("__", 1)[0]
+        candidates = sorted(
+            path.name
+            for path in LHTB_TASKS_ROOT.iterdir()
+            if path.is_dir() and path.name.startswith(trial_prefix)
+        )
+        if len(candidates) == 1:
+            return candidates[0]
+        return trial_prefix
+
     async def _mirror_official_verifier(self, environment: BaseEnvironment) -> None:
         """Expose mounted verifier sources to Roy's workspace-scoped read tools."""
 
@@ -301,7 +333,7 @@ class RoyLHTBAgent(BaseAgent):
                 f"{prepared.stderr or prepared.stdout or 'unknown mkdir error'}"
             )
         if self._round > 1:
-            task_name = self.logs_dir.parent.name.split("__", 1)[0]
+            task_name = self._task_name()
             local_tests = LHTB_TASKS_ROOT / task_name / "tests"
             for filename in ("test_outputs.py", "grade.py"):
                 source = local_tests / filename

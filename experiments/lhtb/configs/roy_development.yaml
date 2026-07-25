@@ -12,7 +12,6 @@ environment:
 agents:
   - import_path: mia_exp.benchmarks.lhtb:RoyLHTBAgent
     kwargs:
-      timeout_sec: 14400
       honor_external_deadline: false
       policy_path: ./experiments/lhtb/roy-development-workspace-config.json
 

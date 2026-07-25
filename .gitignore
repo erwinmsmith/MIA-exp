@@ -9,6 +9,7 @@ __pycache__/
 .pytest_cache/
 .ruff_cache/
 .mypy_cache/
+uv.lock
 
 # Roy runtime state and local logs
 .roy/
