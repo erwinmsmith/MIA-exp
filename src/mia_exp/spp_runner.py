@@ -17,7 +17,7 @@ from .benchmarks.spp import (
     render_prompt,
     score_response,
 )
-from .roy_runner import RoyInvocation, load_dotenv, run_roy
+from .roy_runner import RoyInvocation, RoyInvocationFailure, load_dotenv, run_roy
 
 
 def _git_revision(path: Path) -> str:
@@ -129,8 +129,10 @@ def run_benchmark(
         response = ""
         error: str | None = None
         hint: str | None = None
+        active_invocation_role = "solver"
         try:
             if spec.id == "spp.codenames-collaborative":
+                active_invocation_role = "spymaster"
                 spymaster = run_roy(
                     render_prompt(spec.id, instance, stage="spymaster"),
                     workspace=item_dir / "spymaster-workspace",
@@ -143,6 +145,7 @@ def run_benchmark(
                 hint = parse_hint(spymaster.response)
                 if not hint:
                     raise ValueError("Roy did not emit a parseable FINAL_HINT")
+                active_invocation_role = "guesser"
                 guesser = run_roy(
                     render_prompt(spec.id, instance, stage="guesser", hint=hint),
                     workspace=item_dir / "guesser-workspace",
@@ -167,6 +170,11 @@ def run_benchmark(
             score = score_response(spec.id, instance, response)
             status = "completed"
         except Exception as caught:  # Keep a scoreable record for failed trials.
+            if isinstance(caught, RoyInvocationFailure):
+                invocations[active_invocation_role] = _invocation_record(
+                    caught.invocation,
+                    run_root,
+                )
             error = f"{type(caught).__name__}: {caught}"
             score = _failed_score(spec, instance, error)
             status = "failed"

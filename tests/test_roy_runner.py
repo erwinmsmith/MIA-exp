@@ -2,9 +2,16 @@ from __future__ import annotations
 
 import tempfile
 import unittest
+from subprocess import CompletedProcess
 from pathlib import Path
+from unittest.mock import patch
 
-from mia_exp.roy_runner import _telemetry, load_dotenv
+from mia_exp.roy_runner import (
+    RoyInvocationFailure,
+    _telemetry,
+    load_dotenv,
+    run_roy,
+)
 
 
 class DotenvTests(unittest.TestCase):
@@ -117,6 +124,66 @@ class DotenvTests(unittest.TestCase):
         self.assertEqual(telemetry["teamSynthesisRecoveries"], 1)
         self.assertEqual(telemetry["outputContractRepairEvents"], 2)
         self.assertEqual(telemetry["truncatedStreams"], 1)
+
+    def test_failed_process_preserves_its_diagnostic_invocation(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            bundle = root / "roy-run.mjs"
+            policy = root / "policy.json"
+            artifact = root / "raw" / "roy.json"
+            bundle.write_text("// bundle", encoding="utf-8")
+            policy.write_text("{}\n", encoding="utf-8")
+            artifact.parent.mkdir()
+            artifact.write_text(
+                """{
+  "status": "failed",
+  "error": {
+    "message": "Connection error.",
+    "retryable": true,
+    "persistedState": true
+  },
+  "recovery": {
+    "attempts": 3,
+    "correlationIds": ["failed-1", "failed-2", "failed-3"]
+  },
+  "events": [
+    {"type": "runtime.transient_turn.retrying"},
+    {"type": "runtime.transient_turn.retrying"},
+    {"type": "runtime.transient_turn.failed"}
+  ],
+  "messages": []
+}
+""",
+                encoding="utf-8",
+            )
+
+            with patch(
+                "mia_exp.roy_runner.subprocess.run",
+                return_value=CompletedProcess(
+                    args=["node"],
+                    returncode=1,
+                    stdout="",
+                    stderr="roy-run: Connection error.",
+                ),
+            ):
+                with self.assertRaises(RoyInvocationFailure) as raised:
+                    run_roy(
+                        "Solve the task.",
+                        workspace=root / "workspace",
+                        artifact_path=artifact,
+                        session_id="failed-run",
+                        budget=30_000,
+                        timeout_seconds=10,
+                        bundle_path=bundle,
+                        policy_path=policy,
+                    )
+
+        invocation = raised.exception.invocation
+        self.assertEqual(invocation.response, "")
+        self.assertEqual(invocation.telemetry["runtimeStatus"], "failed")
+        self.assertEqual(invocation.telemetry["turnRecoveryAttempts"], 3)
+        self.assertEqual(invocation.telemetry["turnRetryEvents"], 2)
+        self.assertEqual(invocation.telemetry["turnFailureEvents"], 1)
 
 
 if __name__ == "__main__":

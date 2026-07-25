@@ -28,6 +28,14 @@ class RoyInvocation:
     telemetry: dict[str, Any]
 
 
+class RoyInvocationFailure(RuntimeError):
+    """A failed Roy process that still produced a complete diagnostic artifact."""
+
+    def __init__(self, message: str, invocation: RoyInvocation) -> None:
+        super().__init__(message)
+        self.invocation = invocation
+
+
 def load_dotenv(path: Path) -> dict[str, str]:
     """Read a simple dotenv file without logging or expanding secret values."""
 
@@ -122,6 +130,12 @@ def _telemetry(artifact: dict[str, Any]) -> dict[str, Any]:
         )
     ]
     return {
+        "runtimeStatus": artifact.get("status", "completed"),
+        "runtimeError": artifact.get("error"),
+        "turnRecoveryAttempts": (artifact.get("recovery") or {}).get("attempts", 1),
+        "turnCorrelationIds": (artifact.get("recovery") or {}).get(
+            "correlationIds", []
+        ),
         "correlationId": result.get("correlationId"),
         "decision": (result.get("decision") or {}).get("action"),
         "executionTreeStatus": tree.get("status"),
@@ -218,6 +232,15 @@ def _telemetry(artifact: dict[str, Any]) -> dict[str, Any]:
         + event_counts.get("llm.json.retrying", 0),
         "llmRecoveryEvents": event_counts.get("llm.stream.recovered", 0)
         + event_counts.get("llm.json.recovered", 0),
+        "turnRetryEvents": event_counts.get(
+            "runtime.transient_turn.retrying", 0
+        ),
+        "turnRecoveryEvents": event_counts.get(
+            "runtime.transient_turn.recovered", 0
+        ),
+        "turnFailureEvents": event_counts.get(
+            "runtime.transient_turn.failed", 0
+        ),
         "teamSynthesisRecoveries": event_counts.get("team.synthesis.recovered", 0),
         "outputContractRepairEvents": sum(
             count
@@ -293,16 +316,25 @@ def run_roy(
     artifact_path.with_suffix(".stderr.txt").write_text(
         execution.stderr, encoding="utf-8"
     )
-    if execution.returncode != 0:
-        tail = (execution.stderr or execution.stdout)[-2000:]
-        raise RuntimeError(f"Roy exited with code {execution.returncode}: {tail}")
     if not artifact_path.is_file():
+        if execution.returncode != 0:
+            tail = (execution.stderr or execution.stdout)[-2000:]
+            raise RuntimeError(
+                f"Roy exited with code {execution.returncode}: {tail}"
+            )
         raise RuntimeError("Roy completed without writing its JSON artifact")
 
     artifact = json.loads(artifact_path.read_text(encoding="utf-8"))
-    return RoyInvocation(
-        response=str(artifact["result"]["finalResponse"]),
+    invocation = RoyInvocation(
+        response=str((artifact.get("result") or {}).get("finalResponse") or ""),
         artifact_path=artifact_path,
         duration_seconds=duration,
         telemetry=_telemetry(artifact),
     )
+    if execution.returncode != 0:
+        tail = (execution.stderr or execution.stdout)[-2000:]
+        raise RoyInvocationFailure(
+            f"Roy exited with code {execution.returncode}: {tail}",
+            invocation,
+        )
+    return invocation
