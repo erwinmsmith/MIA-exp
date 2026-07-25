@@ -28,7 +28,13 @@ fi
 export DOCKER_DEFAULT_PLATFORM="${DOCKER_DEFAULT_PLATFORM:-linux/amd64}"
 
 if [[ -n "${LHTB_ROY_BUNDLE:-}" ]]; then
+  if [[ ! -f "$LHTB_ROY_BUNDLE" ]]; then
+    echo "error: configured Roy bundle does not exist: $LHTB_ROY_BUNDLE" >&2
+    exit 1
+  fi
   export MIA_ROY_BUNDLE="$LHTB_ROY_BUNDLE"
+else
+  "$repo_root/scripts/ensure-roy-bundle.sh"
 fi
 
 if [[ -z "${OPENAI_API_KEY:-}${ANTHROPIC_API_KEY:-}${DEEPSEEK_API_KEY:-}" ]]; then

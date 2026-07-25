@@ -4,6 +4,7 @@ set -euo pipefail
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 esbuild="$repo_root/core/Roy/node_modules/.bin/esbuild"
 output_path="${1:-$repo_root/artifacts/roy-run.mjs}"
+stamp_path="${output_path}.commit"
 if [[ ! -x "$esbuild" ]]; then
   echo "error: esbuild missing; install Roy dependencies first" >&2
   exit 1
@@ -17,3 +18,5 @@ mkdir -p "$(dirname "$output_path")"
   --target=node20 \
   --banner:js="import { createRequire as __miaCreateRequire } from 'node:module'; const require = __miaCreateRequire(import.meta.url);" \
   --outfile="$output_path"
+
+git -C "$repo_root/core/Roy" rev-parse HEAD >"$stamp_path"

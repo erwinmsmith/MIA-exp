@@ -42,7 +42,26 @@ fi
 
 if [[ -x .venv/bin/harbor ]]; then ok "LHTB Harbor installed in .venv"; else fail "Harbor missing; run make bootstrap"; fi
 if [[ -d core/Roy/node_modules ]]; then ok "Roy dependencies installed"; else fail "Roy dependencies missing; run make bootstrap"; fi
-if [[ -f artifacts/roy-run.mjs ]]; then ok "Roy container bundle built"; else fail "Roy bundle missing; run make bundle"; fi
+roy_commit="$(git -C core/Roy rev-parse HEAD 2>/dev/null || true)"
+roy_changes="$(git -C core/Roy status --porcelain --untracked-files=all -- \
+  src \
+  package.json \
+  package-lock.json \
+  tsconfig.json \
+  eslint.config.js 2>/dev/null || true)"
+bundle_commit=""
+if [[ -f artifacts/roy-run.mjs.commit ]]; then
+  IFS= read -r bundle_commit <artifacts/roy-run.mjs.commit || true
+fi
+if [[ -f artifacts/roy-run.mjs && -z "$roy_changes" && "$bundle_commit" == "$roy_commit" ]]; then
+  ok "Roy container bundle matches core commit"
+elif [[ -n "$roy_changes" ]]; then
+  fail "Roy source has uncommitted changes; rebuild before running experiments"
+elif [[ -f artifacts/roy-run.mjs ]]; then
+  fail "Roy bundle is stale; run make bundle"
+else
+  fail "Roy bundle missing; run make bundle"
+fi
 if [[ -f artifacts/node-v20.20.2-linux-x64.tar.gz ]]; then ok "Linux Node runtime cached"; else fail "Node runtime missing; run make bootstrap"; fi
 if PYTHONPATH=src .venv/bin/python -m mia_exp.cli validate --suite spp >/dev/null 2>&1; then ok "SPP datasets verified"; else fail "SPP datasets missing or corrupt; run make prepare-spp"; fi
 

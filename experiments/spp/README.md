@@ -46,7 +46,9 @@ Run one item first:
 
 Then expand the same command to a complete split by changing `--limit`. A unique
 ignored directory is created under `results/spp/<benchmark>/<timestamp>/` unless
-`--output` is supplied.
+`--output` is supplied. The launcher checks the bundle's recorded Roy commit and
+rebuilds it automatically after a core update, so an ignored artifact cannot
+silently make a run use stale runtime code.
 
 SPP runs leave Roy's token market unlimited by default. This preserves complete
 reasoning, synthesis, continuation, and acceptance-repair cycles while still
