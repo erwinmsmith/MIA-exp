@@ -10,6 +10,7 @@ from .benchmarks.contracts import aggregate_benchmark_summaries
 from .benchmarks.registry import get_benchmark, iter_benchmarks, validate_data
 from .benchmarks.spp import load_instances, render_prompt, score_response
 from .harbor_results import write_harbor_summary
+from .roy_artifacts import render_roy_summary_markdown, summarize_roy_artifacts
 from .spp_runner import run_benchmark
 
 
@@ -52,6 +53,14 @@ def _parser() -> argparse.ArgumentParser:
     harbor_summary.add_argument("--strict", action="store_true")
     harbor_summary.add_argument("--require-tasks", type=int)
     harbor_summary.add_argument("--require-all-pass-at", type=int)
+
+    roy_summary = commands.add_parser(
+        "roy-summary",
+        help="summarize Roy artifacts, step behavior, and derivation trees",
+    )
+    roy_summary.add_argument("artifacts", type=Path, nargs="+")
+    roy_summary.add_argument("--format", choices=("json", "markdown"), default="json")
+    roy_summary.add_argument("--output", type=Path)
 
     run = commands.add_parser("run", help="run selected SPP items with Roy")
     run.add_argument("benchmark")
@@ -129,6 +138,19 @@ def main() -> int:
             )
             valid = valid and observed is True
         return 0 if valid else 1
+
+    if args.command == "roy-summary":
+        summary = summarize_roy_artifacts(args.artifacts)
+        rendered = (
+            render_roy_summary_markdown(summary)
+            if args.format == "markdown"
+            else json.dumps(summary, indent=2, ensure_ascii=False) + "\n"
+        )
+        if args.output:
+            args.output.parent.mkdir(parents=True, exist_ok=True)
+            args.output.write_text(rendered, encoding="utf-8")
+        print(rendered, end="")
+        return 0
 
     spec = get_benchmark(args.benchmark)
     instances = load_instances(spec)

@@ -103,6 +103,18 @@ Every reported result should record:
 - verifier reward rather than the agent's self-reported completion status.
 - threshold-aware `pass@1`, `pass@5`, and any configured `pass@k`.
 
+Inspect one artifact or recursively summarize an ignored result directory without
+loading the full trace by hand:
+
+```bash
+mia-bench roy-summary results/<run> --format markdown \
+  --output results/<run>/roy-execution-summary.md
+```
+
+The summary retains each root step's decision, dependencies, newly derived teams
+and agents, parent and generation, feedback, model usage, and aggregate recursion
+depth. It reads Roy's public artifact schema and is benchmark-neutral.
+
 ## Common score contract
 
 Every adapter exposes an item-level score as `earned / possible` in `[0, 1]` and
