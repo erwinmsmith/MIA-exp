@@ -140,6 +140,24 @@ class RoyLHTBSecretInjectionTests(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual(agent.bundle_path, bundle_path.resolve())
 
+    async def test_version_and_metadata_identity_follow_the_selected_bundle(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            bundle_path = Path(directory) / "roy-versioned.mjs"
+            bundle_path.write_text("// versioned bundle", encoding="utf-8")
+            commit = "a" * 40
+            Path(f"{bundle_path}.commit").write_text(
+                f"{commit}\n", encoding="utf-8"
+            )
+            agent = RoyLHTBAgent(
+                logs_dir=Path(directory) / "logs",
+                bundle_path=str(bundle_path),
+            )
+
+            self.assertEqual(agent.version(), f"0.1.0+{commit[:12]}")
+            self.assertEqual(agent._bundle_commit(), commit)
+
     async def test_runtime_does_not_pass_credentials_in_exec_argv_or_env(self) -> None:
         secret = "test-secret-value"
         with tempfile.TemporaryDirectory() as directory:

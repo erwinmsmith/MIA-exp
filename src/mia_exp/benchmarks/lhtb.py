@@ -155,7 +155,16 @@ class RoyLHTBAgent(BaseAgent):
 
     def version(self) -> str:
         package = json.loads((REPO_ROOT / "core" / "Roy" / "package.json").read_text())
-        return str(package["version"])
+        version = str(package["version"])
+        bundle_commit = self._bundle_commit()
+        return f"{version}+{bundle_commit[:12]}" if bundle_commit else version
+
+    def _bundle_commit(self) -> str | None:
+        stamp_path = Path(f"{self.bundle_path}.commit")
+        if not stamp_path.is_file():
+            return None
+        commit = stamp_path.read_text(encoding="utf-8").strip()
+        return commit if re.fullmatch(r"[0-9a-f]{40}", commit) else None
 
     def _validate_local_artifacts(self) -> None:
         missing = [
@@ -562,6 +571,8 @@ class RoyLHTBAgent(BaseAgent):
 
         metadata: dict[str, Any] = {
             "round": round_id,
+            "roy_bundle": str(self.bundle_path),
+            "roy_bundle_commit": self._bundle_commit(),
             "return_code": execution.return_code,
             "stdout_tail": (execution.stdout or "")[-4000:],
             "stderr_tail": (execution.stderr or "")[-4000:],
