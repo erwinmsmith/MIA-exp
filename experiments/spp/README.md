@@ -54,6 +54,19 @@ recording actual provider usage. Pass `--budget N` only for an intentional
 budget-ablation experiment; the selected mode and value are recorded in
 `run.json`.
 
+Run the same sample window across the complete suite:
+
+```bash
+./scripts/run-spp-suite.sh \
+  --start 0 \
+  --limit 10 \
+  --timeout 1800 \
+  --output-root results/spp/all-10
+```
+
+Use `--benchmarks id1,id2` to select a subset while retaining the same output
+layout and run contract.
+
 An output directory that already contains `run.json` or `items.jsonl` is rejected
 to prevent records from separate runs or commits being mixed accidentally.
 
