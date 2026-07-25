@@ -36,6 +36,13 @@ class RoyInvocationFailure(RuntimeError):
         self.invocation = invocation
 
 
+def resolve_bundle_path(bundle_path: Path | None = None) -> Path:
+    """Resolve an explicitly pinned Roy bundle before falling back to the default."""
+
+    configured = bundle_path or os.environ.get("MIA_ROY_BUNDLE") or DEFAULT_BUNDLE
+    return Path(configured).expanduser().resolve()
+
+
 def load_dotenv(path: Path) -> dict[str, str]:
     """Read a simple dotenv file without logging or expanding secret values."""
 
@@ -304,12 +311,13 @@ def run_roy(
     session_id: str,
     timeout_seconds: int,
     budget: int | None = None,
-    bundle_path: Path = DEFAULT_BUNDLE,
+    bundle_path: Path | None = None,
     policy_path: Path = DEFAULT_POLICY,
     env_file: Path | None = None,
 ) -> RoyInvocation:
     """Run one isolated Roy session and retain its complete artifact."""
 
+    bundle_path = resolve_bundle_path(bundle_path)
     if not bundle_path.is_file():
         raise FileNotFoundError(f"Roy bundle is missing: {bundle_path}")
     if not policy_path.is_file():

@@ -15,6 +15,7 @@ limit=10
 timeout=1800
 output_root="$repo_root/results/spp/suite"
 budget_args=()
+roy_bundle=""
 
 usage() {
   cat <<'EOF'
@@ -28,6 +29,7 @@ Options:
   --limit <count>     Items per benchmark (default: 10).
   --timeout <seconds> Per-invocation process timeout (default: 1800).
   --output-root <dir> Suite result root.
+  --roy-bundle <path> Pin every invocation to one prebuilt Roy bundle.
   --budget <tokens>   Optional explicit per-invocation token cap.
   -h, --help          Show this help.
 
@@ -55,6 +57,10 @@ while (($# > 0)); do
       ;;
     --output-root)
       output_root="${2:?--output-root requires a value}"
+      shift 2
+      ;;
+    --roy-bundle)
+      roy_bundle="${2:?--roy-bundle requires a value}"
       shift 2
       ;;
     --budget)
@@ -96,6 +102,16 @@ for benchmark in "${benchmarks[@]}"; do
 done
 
 mkdir -p "$output_root"
+if [[ -n "$roy_bundle" ]]; then
+  if [[ "$roy_bundle" != /* ]]; then
+    roy_bundle="$repo_root/$roy_bundle"
+  fi
+  if [[ ! -f "$roy_bundle" ]]; then
+    echo "Configured Roy bundle does not exist: $roy_bundle" >&2
+    exit 1
+  fi
+  export MIA_ROY_BUNDLE="$roy_bundle"
+fi
 for benchmark in "${benchmarks[@]}"; do
   "$repo_root/scripts/run-spp-roy.sh" \
     "$benchmark" \

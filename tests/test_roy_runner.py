@@ -10,11 +10,19 @@ from mia_exp.roy_runner import (
     RoyInvocationFailure,
     _telemetry,
     load_dotenv,
+    resolve_bundle_path,
     run_roy,
 )
 
 
 class DotenvTests(unittest.TestCase):
+    def test_resolves_bundle_from_environment_for_reproducible_suites(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            bundle = Path(directory) / "roy-pinned.mjs"
+            bundle.write_text("// bundle", encoding="utf-8")
+            with patch.dict("os.environ", {"MIA_ROY_BUNDLE": str(bundle)}):
+                self.assertEqual(resolve_bundle_path(), bundle.resolve())
+
     def test_loads_values_without_expanding_or_logging_them(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / ".env"

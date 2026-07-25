@@ -17,7 +17,13 @@ from .benchmarks.spp import (
     render_prompt,
     score_response,
 )
-from .roy_runner import RoyInvocation, RoyInvocationFailure, load_dotenv, run_roy
+from .roy_runner import (
+    RoyInvocation,
+    RoyInvocationFailure,
+    load_dotenv,
+    resolve_bundle_path,
+    run_roy,
+)
 
 
 def _git_revision(path: Path) -> str:
@@ -39,11 +45,21 @@ def _runtime_identity() -> dict[str, Any]:
         provider = "anthropic"
     else:
         provider = None
+    bundle_path = resolve_bundle_path()
+    stamp_path = Path(f"{bundle_path}.commit")
+    bundle_commit = (
+        stamp_path.read_text(encoding="utf-8").strip()
+        if stamp_path.is_file()
+        else None
+    )
+    source_commit = _git_revision(REPO_ROOT / "core" / "Roy")
     return {
         "provider": provider,
         "model": env.get("DEFAULT_MODEL"),
         "miaExpCommit": _git_revision(REPO_ROOT),
-        "royCommit": _git_revision(REPO_ROOT / "core" / "Roy"),
+        "royCommit": bundle_commit or source_commit,
+        "roySourceCommit": source_commit,
+        "royBundle": str(bundle_path),
         "benchmarkCommit": _git_revision(REPO_ROOT / "benchmarks" / "SPP"),
     }
 

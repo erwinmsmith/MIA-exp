@@ -63,11 +63,16 @@ Run the same sample window across the complete suite:
   --start 0 \
   --limit 10 \
   --timeout 1800 \
+  --roy-bundle artifacts/roy-run-<roy-commit>.mjs \
   --output-root results/spp/all-10
 ```
 
 Use `--benchmarks id1,id2` to select a subset while retaining the same output
-layout and run contract.
+layout and run contract. For formal comparisons, pass a versioned bundle with
+`--roy-bundle`; the suite treats that artifact as immutable and records both its
+stamp commit and the checked-out Roy source commit in every `run.json`. Without
+this option, the launcher maintains the default bundle against the current Roy
+checkout for exploratory runs.
 
 An output directory that already contains `run.json` or `items.jsonl` is rejected
 to prevent records from separate runs or commits being mixed accidentally.
