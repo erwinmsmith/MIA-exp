@@ -106,6 +106,28 @@ class FakeEnvironment:
         return None
 
 
+class FailedRoyEnvironment(FakeEnvironment):
+    def __init__(self, artifact: dict[str, Any]) -> None:
+        super().__init__()
+        self.artifact = artifact
+
+    async def exec(self, command: str, **kwargs: Any) -> ExecResult:
+        self.exec_calls.append((command, kwargs))
+        if "exec /opt/node/bin/node /opt/roy/roy-run.mjs" in command:
+            return ExecResult(
+                return_code=1,
+                stdout="",
+                stderr="roy-run: Connection error.",
+            )
+        return ExecResult(return_code=0, stdout="", stderr="")
+
+    async def download_file(self, _source_path: str, target_path: Path | str) -> None:
+        Path(target_path).write_text(
+            json.dumps(self.artifact),
+            encoding="utf-8",
+        )
+
+
 class RoyLHTBSecretInjectionTests(unittest.IsolatedAsyncioTestCase):
     async def test_bundle_can_be_selected_without_changing_benchmark_config(
         self,
@@ -374,6 +396,61 @@ class RoyLHTBSecretInjectionTests(unittest.IsolatedAsyncioTestCase):
             if "/opt/roy/roy-run.mjs" in command
         )
         self.assertNotIn("--wall-clock-ms", run_command)
+
+    async def test_retryable_runtime_failure_hands_partial_workspace_to_verifier(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            agent = RoyLHTBAgent(logs_dir=Path(directory))
+            environment = FailedRoyEnvironment(
+                {
+                    "status": "failed",
+                    "error": {
+                        "message": "Connection error.",
+                        "retryable": True,
+                        "persistedState": True,
+                    },
+                    "recovery": {
+                        "attempts": 3,
+                        "correlationIds": ["failed-1", "failed-2", "failed-3"],
+                    },
+                }
+            )
+            context = AgentContext()
+
+            await agent.run(
+                "Continue the long-horizon task.",
+                environment,  # type: ignore[arg-type]
+                context,
+            )
+
+        self.assertTrue(context.metadata["transient_failure_handoff"])
+        self.assertEqual(context.metadata["runtime_artifact_status"], "failed")
+        self.assertEqual(
+            context.metadata["runtime_error"]["message"],
+            "Connection error.",
+        )
+
+    async def test_non_retryable_runtime_failure_remains_an_agent_error(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            agent = RoyLHTBAgent(logs_dir=Path(directory))
+            environment = FailedRoyEnvironment(
+                {
+                    "status": "failed",
+                    "error": {
+                        "message": "Invalid runtime configuration.",
+                        "retryable": False,
+                        "persistedState": True,
+                    },
+                }
+            )
+
+            with self.assertRaisesRegex(RuntimeError, "Roy exited with code 1"):
+                await agent.run(
+                    "Continue the long-horizon task.",
+                    environment,  # type: ignore[arg-type]
+                    AgentContext(),
+                )
 
 
 if __name__ == "__main__":

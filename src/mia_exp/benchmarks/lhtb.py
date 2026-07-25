@@ -552,6 +552,7 @@ class RoyLHTBAgent(BaseAgent):
             ),
             "external_wall_clock_ms": external_wall_clock_ms,
         }
+        artifact: dict[str, Any] | None = None
         if local_result.is_file():
             artifact = json.loads(local_result.read_text(encoding="utf-8"))
             usage = artifact.get("result", {}).get("usage", {}).get("total", {})
@@ -563,9 +564,19 @@ class RoyLHTBAgent(BaseAgent):
             metadata["execution_tree_status"] = (
                 artifact.get("result", {}).get("executionTree", {}).get("status")
             )
+            metadata["runtime_artifact_status"] = artifact.get("status")
+            metadata["runtime_error"] = artifact.get("error")
+        transient_failure_handoff = bool(
+            execution.return_code != 0
+            and artifact
+            and artifact.get("status") == "failed"
+            and artifact.get("error", {}).get("retryable") is True
+            and artifact.get("error", {}).get("persistedState") is True
+        )
+        metadata["transient_failure_handoff"] = transient_failure_handoff
         context.metadata = {**(context.metadata or {}), **metadata}
 
-        if execution.return_code != 0:
+        if execution.return_code != 0 and not transient_failure_handoff:
             raise RuntimeError(
                 "Roy exited with code "
                 f"{execution.return_code}: {execution.stderr or execution.stdout}"
