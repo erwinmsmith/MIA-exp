@@ -22,7 +22,8 @@ considered a successful smoke.
 
 Image preparation reads each task's declared `environment.docker_image`, pulls the
 official `linux/amd64` image, requires a registry digest, and probes `/app` and
-Python. It rejects locally reconstructed images without a registry digest. The
+the image's `python` or `python3` interpreter. It rejects locally reconstructed
+images without a registry digest. The
 scripts use an isolated anonymous Docker client config so a stale desktop credential
 helper cannot block pulls. Set
 `MIA_DOCKER_CONFIG=/path/to/config` to use a different Docker client config.

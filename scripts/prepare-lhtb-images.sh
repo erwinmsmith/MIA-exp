@@ -84,7 +84,14 @@ prepare_image() {
   fi
 
   docker run --rm --platform "$DOCKER_DEFAULT_PLATFORM" --entrypoint /bin/sh "$image" -lc \
-    'set -eu; test -d /app; command -v python >/dev/null; python --version >/dev/null'
+    'set -eu
+     test -d /app
+     if command -v python >/dev/null 2>&1; then
+       python --version >/dev/null
+     else
+       command -v python3 >/dev/null
+       python3 --version >/dev/null
+     fi'
 
   printf 'ok   %s\n' "$task_name"
   printf '     image:  %s\n' "$image"
