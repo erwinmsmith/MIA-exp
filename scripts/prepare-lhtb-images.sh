@@ -71,9 +71,12 @@ prepare_image() {
   local architecture
   local operating_system
   local repo_digests
+  local working_dir
   architecture="$(docker image inspect "$image" --format '{{.Architecture}}')"
   operating_system="$(docker image inspect "$image" --format '{{.Os}}')"
   repo_digests="$(docker image inspect "$image" --format '{{join .RepoDigests ","}}')"
+  working_dir="$(docker image inspect "$image" --format '{{.Config.WorkingDir}}')"
+  working_dir="${working_dir:-/app}"
   if [[ "$operating_system/$architecture" != "linux/amd64" ]]; then
     echo "error: $image resolved to $operating_system/$architecture, expected linux/amd64" >&2
     return 1
@@ -83,9 +86,11 @@ prepare_image() {
     return 1
   fi
 
-  docker run --rm --platform "$DOCKER_DEFAULT_PLATFORM" --entrypoint /bin/sh "$image" -lc \
+  docker run --rm --platform "$DOCKER_DEFAULT_PLATFORM" \
+    --env "MIA_LHTB_PROBE_WORKDIR=$working_dir" \
+    --entrypoint /bin/sh "$image" -lc \
     'set -eu
-     test -d /app
+     test -d "$MIA_LHTB_PROBE_WORKDIR"
      if command -v python >/dev/null 2>&1; then
        python --version >/dev/null
      else
@@ -97,6 +102,7 @@ prepare_image() {
   printf '     image:  %s\n' "$image"
   printf '     digest: %s\n' "$repo_digests"
   printf '     target: %s/%s\n' "$operating_system" "$architecture"
+  printf '     workdir: %s\n' "$working_dir"
 }
 
 if (( $# > 0 )); then
