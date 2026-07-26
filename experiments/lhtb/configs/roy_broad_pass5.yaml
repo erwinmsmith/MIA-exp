@@ -1,0 +1,30 @@
+job_name: lhtb-roy-broad-pass5
+jobs_dir: ./jobs
+n_attempts: 5
+n_concurrent_trials: 1
+timeout_multiplier: 4.0
+
+environment:
+  import_path: mia_exp.benchmarks.lhtb:RoyLHTBDockerEnvironment
+  force_build: false
+  delete: true
+
+agents:
+  - import_path: mia_exp.benchmarks.lhtb:RoyLHTBAgent
+    kwargs:
+      honor_external_deadline: false
+      policy_path: ./experiments/lhtb/roy-development-workspace-config.json
+
+datasets:
+  - path: ./benchmarks/LHTB/tasks
+    task_names:
+      - "2048"
+      - alp-paper-reproduction
+      - apex-law433-matter
+      - audio-visual-event-alignment
+      - climate-netcdf-extreme-event-audit
+      - document-table-layout-reconstruction
+      - duckdb-optimizer-closure
+      - grammar-fuzz-coverage-hunt
+      - great-expectations-audit
+      - langchain-version-migration

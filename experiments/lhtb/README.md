@@ -53,12 +53,22 @@ export OPENAI_API_KEY=...
 make run-lhtb-roy
 ```
 
-Run all currently checked-out LHTB tasks sequentially with the multi-task config:
+Run the original three-task engineering set sequentially with the multi-task config:
 
 ```bash
 LHTB_ROY_CONFIG="$PWD/experiments/lhtb/configs/roy_multi.yaml" \
 LHTB_ROY_TASKS="langchain-version-migration,great-expectations-audit,document-table-layout-reconstruction" \
 make run-lhtb-roy
+```
+
+The pinned LHTB revision contains 46 tasks. `roy_all_development.yaml` is the
+complete task manifest, while `roy_broad_pass5.yaml` is a deterministic
+cross-domain sample of 10 tasks with five attempts each. Both use sequential
+execution because individual LHTB containers can be resource intensive:
+
+```bash
+LHTB_ROY_CONFIG="$PWD/experiments/lhtb/configs/roy_broad_pass5.yaml" \
+./scripts/run-lhtb-roy.sh --yes
 ```
 
 For completion-oriented local debugging, use the development config. It keeps the
@@ -76,9 +86,10 @@ Use `roy_multi.yaml` for comparable official-time results. The development confi
 is for exposing and closing implementation defects; its longer envelope is not
 reported as an official benchmark result.
 
-`LHTB_ROY_CONFIG` selects the Harbor config and `LHTB_ROY_TASKS` is the
-comma-separated image-preparation set. Raw jobs remain ignored; publish only
-deliberately summarized, secret-free results.
+`LHTB_ROY_CONFIG` selects the Harbor config. By default, the launcher derives the
+image-preparation set from that config's `datasets[].task_names`; set
+`LHTB_ROY_TASKS` only to override it explicitly. Raw jobs remain ignored; publish
+only deliberately summarized, secret-free results.
 
 Normalize any completed Harbor job and calculate threshold-aware sampling metrics:
 
@@ -92,11 +103,12 @@ mia-bench harbor-summary jobs/<job> \
 
 `pass@1` and `pass@5` are standard unbiased estimators computed per task and
 macro-averaged. The summary also records the observed first-k outcome for every
-task, raw rewards, exceptions, tokens, cost, and whether every checked-out LHTB
-task reached reward `>= 0.95`. A requested k is explicitly `null` when any task
-has fewer than k attempts. The release target is all three current tasks passing
-on the first attempt; five-attempt runs are used to report `pass@5` after that
-single-attempt baseline is stable.
+task, raw rewards, exceptions, tokens, cost, and whether every selected LHTB task
+reached reward `>= 0.95`. A requested k is explicitly `null` when any task has
+fewer than k attempts. The long-term target is all 46 pinned tasks reaching the
+threshold. The broad sample records five attempts per selected task so `pass@1`,
+`pass@5`, and observed per-attempt outcomes can be reported without claiming a
+full-suite result.
 
 To compare Roy revisions without replacing the default bundle used by another
 running benchmark, build and select a versioned artifact:

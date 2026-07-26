@@ -47,14 +47,41 @@ if ! docker info >/dev/null 2>&1; then
   exit 1
 fi
 
-IFS=',' read -r -a lhtb_tasks <<< "${LHTB_ROY_TASKS:-langchain-version-migration}"
-"$repo_root/scripts/prepare-lhtb-images.sh" "${lhtb_tasks[@]}"
-
 roy_config="${LHTB_ROY_CONFIG:-$repo_root/experiments/lhtb/configs/roy_smoke.yaml}"
 if [[ ! -f "$roy_config" ]]; then
   echo "error: Roy LHTB config does not exist: $roy_config" >&2
   exit 1
 fi
+
+lhtb_tasks=()
+if [[ -n "${LHTB_ROY_TASKS:-}" ]]; then
+  IFS=',' read -r -a lhtb_tasks <<< "$LHTB_ROY_TASKS"
+else
+  while IFS= read -r task_name; do
+    lhtb_tasks+=("$task_name")
+  done < <(
+    "$repo_root/.venv/bin/python" - "$roy_config" <<'PY'
+import sys
+from pathlib import Path
+
+import yaml
+
+config_path = Path(sys.argv[1])
+config = yaml.safe_load(config_path.read_text(encoding="utf-8")) or {}
+seen = set()
+for dataset in config.get("datasets", []):
+    for task_name in dataset.get("task_names", []) or []:
+        if task_name not in seen:
+            print(task_name)
+            seen.add(task_name)
+PY
+  )
+fi
+if (( ${#lhtb_tasks[@]} == 0 )); then
+  echo "error: no LHTB task names found in $roy_config; set LHTB_ROY_TASKS explicitly" >&2
+  exit 1
+fi
+"$repo_root/scripts/prepare-lhtb-images.sh" "${lhtb_tasks[@]}"
 
 exec "$repo_root/.venv/bin/harbor" run \
   -c "$roy_config" \
