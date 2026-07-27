@@ -17,9 +17,10 @@ show_repo "experiment" .
 show_repo "core" core/Roy
 show_repo "benchmark/lhtb" benchmarks/LHTB
 show_repo "benchmark/spp" benchmarks/SPP
+show_repo "baseline/evoagent" baselines/EvoAgent
 
 if [[ "$require_clean" == "--require-clean-submodules" ]]; then
-  for path in core/Roy benchmarks/LHTB benchmarks/SPP; do
+  for path in core/Roy benchmarks/LHTB benchmarks/SPP baselines/EvoAgent; do
     if [[ -n "$(git -C "$path" status --porcelain)" ]]; then
       echo "error: dirty nested repository: $path" >&2
       exit 1

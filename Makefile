@@ -1,6 +1,6 @@
 SHELL := /bin/bash
 
-.PHONY: bootstrap bundle doctor repo-status check prepare-lhtb-images prepare-spp smoke-roy smoke-roy-container smoke-harbor smoke-lhtb smoke-spp run-lhtb-roy run-spp-roy run-spp-suite
+.PHONY: bootstrap bundle doctor repo-status check prepare-lhtb-images prepare-spp prepare-evoagent smoke-roy smoke-roy-container smoke-harbor smoke-lhtb smoke-spp smoke-evoagent run-lhtb-roy run-spp-roy run-spp-suite run-evoagent-suite
 
 bootstrap:
 	./scripts/bootstrap.sh
@@ -20,7 +20,10 @@ prepare-lhtb-images:
 prepare-spp:
 	./scripts/prepare-spp.sh
 
-check: smoke-roy smoke-harbor smoke-spp
+prepare-evoagent:
+	./scripts/prepare-evoagent.sh
+
+check: smoke-roy smoke-harbor smoke-spp smoke-evoagent
 	./scripts/repo-status.sh --require-clean-submodules
 
 smoke-roy:
@@ -38,6 +41,9 @@ smoke-lhtb:
 smoke-spp:
 	./scripts/smoke-spp.sh
 
+smoke-evoagent:
+	PYTHONPATH=src .venv/bin/python -m unittest tests.test_evoagent_runner
+
 run-lhtb-roy:
 	./scripts/run-lhtb-roy.sh
 
@@ -46,3 +52,6 @@ run-spp-roy:
 
 run-spp-suite:
 	./scripts/run-spp-suite.sh $(ARGS)
+
+run-evoagent-suite:
+	./scripts/run-evoagent-suite.sh $(ARGS)

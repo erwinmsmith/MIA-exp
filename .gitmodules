@@ -8,3 +8,7 @@
 [submodule "benchmarks/SPP"]
 	path = benchmarks/SPP
 	url = https://github.com/MikeWangWZHL/Solo-Performance-Prompting.git
+[submodule "baselines/EvoAgent"]
+	path = baselines/EvoAgent
+	url = https://github.com/siyuyuan/evoagent.git
+	shallow = true

@@ -8,6 +8,7 @@ git submodule sync --recursive
 git submodule update --init core/Roy
 git submodule update --init --depth 1 benchmarks/LHTB
 git submodule update --init benchmarks/SPP
+git submodule update --init baselines/EvoAgent
 
 if ! command -v git-lfs >/dev/null 2>&1 && ! git lfs version >/dev/null 2>&1; then
   echo "error: Git LFS is required. Install it before bootstrapping LHTB." >&2

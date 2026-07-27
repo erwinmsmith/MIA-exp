@@ -20,6 +20,7 @@ if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then ok "MIA-exp Git rep
 if git -C core/Roy rev-parse --is-inside-work-tree >/dev/null 2>&1; then ok "Roy submodule"; else fail "Roy submodule is missing"; fi
 if git -C benchmarks/LHTB rev-parse --is-inside-work-tree >/dev/null 2>&1; then ok "LHTB submodule"; else fail "LHTB submodule is missing"; fi
 if git -C benchmarks/SPP rev-parse --is-inside-work-tree >/dev/null 2>&1; then ok "SPP submodule"; else fail "SPP submodule is missing"; fi
+if git -C baselines/EvoAgent rev-parse --is-inside-work-tree >/dev/null 2>&1; then ok "EvoAgent submodule"; else fail "EvoAgent submodule is missing"; fi
 
 for command_name in node npm uv python3 docker; do
   if command -v "$command_name" >/dev/null 2>&1; then ok "$command_name available"; else fail "$command_name unavailable"; fi
