@@ -10,6 +10,7 @@ requires-python = ">=3.11"
 
 [project.scripts]
 mia-bench = "mia_exp.cli:main"
+mia-direct = "mia_exp.direct_cli:main"
 mia-evoagent = "mia_exp.evoagent_cli:main"
 
 [tool.hatch.build.targets.wheel]

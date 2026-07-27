@@ -1,6 +1,6 @@
 SHELL := /bin/bash
 
-.PHONY: bootstrap bundle doctor repo-status check prepare-lhtb-images prepare-spp prepare-evoagent smoke-roy smoke-roy-container smoke-harbor smoke-lhtb smoke-spp smoke-evoagent run-lhtb-roy run-spp-roy run-spp-suite run-evoagent-suite
+.PHONY: bootstrap bundle doctor repo-status check prepare-lhtb-images prepare-spp prepare-evoagent smoke-roy smoke-roy-container smoke-harbor smoke-lhtb smoke-spp smoke-evoagent run-lhtb-roy run-spp-roy run-spp-suite run-evoagent-suite run-direct-suite
 
 bootstrap:
 	./scripts/bootstrap.sh
@@ -55,3 +55,6 @@ run-spp-suite:
 
 run-evoagent-suite:
 	./scripts/run-evoagent-suite.sh $(ARGS)
+
+run-direct-suite:
+	./scripts/run-direct-suite.sh $(ARGS)

@@ -13,6 +13,7 @@ from mia_exp.evoagent_runner import (
     render_official_initial_prompt,
     run_evoagent_benchmark,
     run_evoagent_item,
+    run_direct_item,
 )
 from mia_exp.benchmarks.spp import load_instances
 
@@ -123,6 +124,38 @@ class EvoAgentRunnerTests(unittest.TestCase):
         self.assertEqual(len(checks), 2)
         self.assertTrue(checks[0]["discarded"])
         self.assertFalse(checks[1]["discarded"])
+
+    def test_multiline_logic_final_answer_is_scored(self) -> None:
+        instance = load_instances("spp.logic-grid-puzzle")[5]
+        result = run_direct_item(
+            "spp.logic-grid-puzzle",
+            instance,
+            item_index=5,
+            client=FakeClient(["Reasoning\n### Final Answer\n\nchoice: 3"]),  # type: ignore[arg-type]
+        )
+        self.assertEqual(result["score"].score, 1)
+        self.assertEqual(result["usage"]["modelCalls"], 1)
+        self.assertEqual(result["executionTree"]["maxGeneration"], 1)
+
+    def test_direct_codenames_uses_only_the_two_required_roles(self) -> None:
+        instance = load_instances("spp.codenames-collaborative")[9]
+        result = run_direct_item(
+            "spp.codenames-collaborative",
+            instance,
+            item_index=9,
+            client=FakeClient(
+                [
+                    "Final Answer: drum",
+                    "Final Answer: **kick**, **rope**",
+                ]
+            ),  # type: ignore[arg-type]
+        )
+        self.assertEqual(result["score"].score, 1)
+        self.assertEqual(result["usage"]["modelCalls"], 2)
+        self.assertEqual(
+            [call["phase"] for call in result["calls"]],
+            ["direct_answer", "direct_answer"],
+        )
 
     def test_run_writes_common_score_and_raw_trace(self) -> None:
         responses = ["initial", "expert", "Retain", "sub", "Final Answer: choice: 2"]

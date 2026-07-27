@@ -9,6 +9,7 @@ MIA-exp.
 from __future__ import annotations
 
 import ast
+import http.client
 import json
 import os
 import random
@@ -139,6 +140,7 @@ class OpenAICompatibleClient:
                 )
             except (
                 TimeoutError,
+                http.client.IncompleteRead,
                 urllib.error.HTTPError,
                 urllib.error.URLError,
                 json.JSONDecodeError,
@@ -460,7 +462,11 @@ def _evolve(
 
 def _extract_final_answer(response: str) -> str:
     matches = list(
-        re.finditer(r"Final\s+Answer\s*:\s*(.*)", response, flags=re.IGNORECASE)
+        re.finditer(
+            r"Final\s+Answer\s*:?[ \t]*(?:\r?\n[ \t]*)*([^\r\n]+)",
+            response,
+            flags=re.IGNORECASE,
+        )
     )
     return (matches[-1].group(1) if matches else response).strip().splitlines()[0]
 
@@ -482,6 +488,15 @@ def _codenames_hint(response: str) -> str:
     if not match:
         raise ValueError("EvoAgent did not produce a parseable Codenames hint")
     return match.group(0)
+
+
+def _codenames_scoring_response(response: str) -> str:
+    final = _extract_final_answer(response)
+    guesses = [
+        fragment.strip().strip(" *`_~.。;:!?\"'")
+        for fragment in final.split(",")
+    ]
+    return f"FINAL_GUESSES: {', '.join(guess for guess in guesses if guess)}"
 
 
 def _usage_totals(calls: list[dict[str, Any]]) -> dict[str, Any]:
@@ -599,7 +614,7 @@ def run_evoagent_item(
             extra_format={"n": len(instance["target_words"])},
         )
         role_trajectories.append(("guesser", guess_trajectory))
-        scoring_response = f"FINAL_GUESSES: {_extract_final_answer(answer)}"
+        scoring_response = _codenames_scoring_response(answer)
     else:
         question = render_official_initial_prompt(benchmark_id, instance)
         initial = session.complete(question, role="solver", phase="initialization")
@@ -634,6 +649,94 @@ def run_evoagent_item(
         "executionTree": _execution_tree(role_trajectories),
         "calls": session.calls,
         "usage": _usage_totals(session.calls),
+    }
+
+
+def run_direct_item(
+    benchmark_id: str,
+    instance: dict[str, Any],
+    *,
+    item_index: int,
+    client: OpenAICompatibleClient,
+    session: EvoAgentSession | None = None,
+) -> dict[str, Any]:
+    """Run one item without evolution, delegation, feedback, or refinement."""
+
+    session = session or EvoAgentSession(client, benchmark_id, item_index=item_index)
+    hint: str | None = None
+    roles: list[dict[str, Any]] = []
+    if benchmark_id == "spp.codenames-collaborative":
+        spy_prompt = render_official_initial_prompt(
+            benchmark_id, instance, role="spymaster"
+        )
+        spy_answer = session.complete(
+            spy_prompt, role="spymaster", phase="direct_answer"
+        )
+        hint = _codenames_hint(spy_answer)
+        roles.append(
+            {
+                "role": "spymaster",
+                "prompt": spy_prompt,
+                "answer": spy_answer,
+            }
+        )
+        guess_prompt = render_official_initial_prompt(
+            benchmark_id, instance, role="guesser", hint=hint
+        )
+        answer = session.complete(
+            guess_prompt, role="guesser", phase="direct_answer"
+        )
+        roles.append(
+            {
+                "role": "guesser",
+                "prompt": guess_prompt,
+                "answer": answer,
+            }
+        )
+        scoring_response = _codenames_scoring_response(answer)
+    else:
+        prompt = render_official_initial_prompt(benchmark_id, instance)
+        answer = session.complete(prompt, role="solver", phase="direct_answer")
+        roles.append({"role": "solver", "prompt": prompt, "answer": answer})
+        scoring_response = (
+            _logic_scoring_response(answer)
+            if benchmark_id == "spp.logic-grid-puzzle"
+            else answer
+        )
+
+    score = score_response(benchmark_id, instance, scoring_response)
+    nodes = [
+        {
+            "id": "root",
+            "kind": "direct_model",
+            "parentId": None,
+            "generation": 0,
+            "label": "Direct model",
+        },
+        *[
+            {
+                "id": f"role-{role['role']}",
+                "kind": "role",
+                "parentId": "root",
+                "generation": 1,
+                "label": role["role"],
+            }
+            for role in roles
+        ],
+    ]
+    return {
+        "hint": hint,
+        "finalAnswer": answer,
+        "scoringResponse": scoring_response,
+        "trajectories": roles,
+        "executionTree": {
+            "nodes": nodes,
+            "paths": [["root", node["id"]] for node in nodes[1:]],
+            "maxGeneration": 1,
+        },
+        "calls": session.calls,
+        "usage": _usage_totals(session.calls),
+        "score": score,
     }
 
 
@@ -681,10 +784,13 @@ def run_evoagent_benchmark(
     request_timeout_seconds: int = DEFAULT_REQUEST_TIMEOUT_SECONDS,
     transport_attempts: int = DEFAULT_TRANSPORT_ATTEMPTS,
     env_file: Path | None = None,
+    method: str = "evoagent",
 ) -> Path:
-    """Run a deterministic SPP slice through the official EvoAgent method."""
+    """Run a deterministic SPP slice through EvoAgent or a direct model."""
 
     spec = get_benchmark(benchmark_id)
+    if method not in {"evoagent", "direct"}:
+        raise ValueError("method must be 'evoagent' or 'direct'")
     if spec.suite != "spp":
         raise ValueError("EvoAgent reproduction currently accepts SPP benchmarks")
     instances = load_instances(spec)
@@ -707,7 +813,7 @@ def run_evoagent_benchmark(
     run_root = (
         output_dir.resolve()
         if output_dir
-        else REPO_ROOT / "results" / "evoagent" / benchmark_id / timestamp
+        else REPO_ROOT / "results" / method / benchmark_id / timestamp
     )
     if (run_root / "run.json").exists() or (run_root / "items.jsonl").exists():
         raise FileExistsError(
@@ -717,7 +823,7 @@ def run_evoagent_benchmark(
     records_path = run_root / "items.jsonl"
     metadata = {
         "schemaVersion": 1,
-        "method": "evoagent",
+        "method": method,
         "benchmarkId": spec.id,
         "benchmarkName": spec.name,
         "source": {"url": spec.source_url, "commit": spec.source_commit},
@@ -727,7 +833,7 @@ def run_evoagent_benchmark(
         },
         "primaryMetric": spec.primary_metric,
         "indices": selected,
-        "individuals": individuals,
+        "individuals": individuals if method == "evoagent" else 0,
         "temperature": 0,
         "provider": model_config.provider,
         "model": model_config.model,
@@ -736,7 +842,11 @@ def run_evoagent_benchmark(
         "miaExpCommit": _git_revision(REPO_ROOT),
         "evoAgentCommit": _git_revision(EVOAGENT_ROOT),
         "benchmarkCommit": _git_revision(REPO_ROOT / "benchmarks" / "SPP"),
-        "promptSource": "pinned upstream EvoAgent Python prompt constants",
+        "promptSource": (
+            "pinned upstream EvoAgent Python prompt constants"
+            if method == "evoagent"
+            else "published EvoAgent SPP initial task prompts"
+        ),
         "startedAt": datetime.now(UTC).isoformat(),
     }
     (run_root / "run.json").write_text(
@@ -751,13 +861,23 @@ def run_evoagent_benchmark(
         item_path.parent.mkdir(parents=True, exist_ok=True)
         item_session = EvoAgentSession(client, spec.id, item_index=index)
         try:
-            result = run_evoagent_item(
-                spec.id,
-                instance,
-                item_index=index,
-                client=client,
-                individuals=individuals,
-                session=item_session,
+            result = (
+                run_evoagent_item(
+                    spec.id,
+                    instance,
+                    item_index=index,
+                    client=client,
+                    individuals=individuals,
+                    session=item_session,
+                )
+                if method == "evoagent"
+                else run_direct_item(
+                    spec.id,
+                    instance,
+                    item_index=index,
+                    client=client,
+                    session=item_session,
+                )
             )
             score = result.pop("score")
             status = "completed"
@@ -779,7 +899,7 @@ def run_evoagent_benchmark(
             }
         raw = {
             "schemaVersion": 1,
-            "method": "evoagent",
+            "method": method,
             "benchmarkId": spec.id,
             "index": index,
             "status": status,
@@ -791,7 +911,7 @@ def run_evoagent_benchmark(
         item_path.write_text(json.dumps(raw, indent=2) + "\n", encoding="utf-8")
         record = {
             "schemaVersion": 1,
-            "method": "evoagent",
+            "method": method,
             "benchmarkId": spec.id,
             "index": index,
             "status": status,
@@ -808,7 +928,7 @@ def run_evoagent_benchmark(
 
     summary = {
         "schemaVersion": 1,
-        "method": "evoagent",
+        "method": method,
         "benchmarkId": spec.id,
         "metric": spec.primary_metric["name"],
         **aggregate_scores(scores),
