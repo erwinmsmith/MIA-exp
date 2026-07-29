@@ -63,6 +63,20 @@ LHTB_ROY_TASKS="langchain-version-migration,great-expectations-audit,document-ta
 make run-lhtb-roy
 ```
 
+Run the same tasks with the selected model in Harbor's standard single-agent
+terminal loop. This is the direct-model control: it uses the same task images,
+official verifier, timeout multiplier, and result layout, but does not use Roy's
+team derivation or memory runtime.
+
+```bash
+LHTB_DIRECT_TASKS="langchain-version-migration,great-expectations-audit,document-table-layout-reconstruction" \
+make run-lhtb-direct
+```
+
+`DirectLHTBAgent` reads `DEFAULT_MODEL` and the provider base URL from the
+environment. The committed development config pins `deepseek-v4-flash` so the
+Roy and direct runs can use the same model.
+
 The pinned LHTB revision contains 46 tasks. `roy_all_development.yaml` is the
 complete task manifest, while `roy_broad_pass5.yaml` is a deterministic
 cross-domain sample of 10 tasks with five attempts each. Both use sequential

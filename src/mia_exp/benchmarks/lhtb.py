@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Any
 
 from harbor.agents.base import BaseAgent
+from harbor.agents.terminus_2 import Terminus2
 from harbor.environments.base import BaseEnvironment
 from harbor.environments.docker.docker import DockerEnvironment
 from harbor.models.agent.context import AgentContext
@@ -41,6 +42,8 @@ REMAINING_SECONDS_PATTERN = re.compile(
 )
 VERIFIER_FEEDBACK_FILES = (
     "reward.txt",
+    "scorecard.json",
+    "grade.log",
     "test-stdout.txt",
     "pytest.log",
     "install.log",
@@ -103,6 +106,42 @@ class RoyLHTBDockerEnvironment(DockerEnvironment):
             self.logger.warning("Docker compose cleanup failed: %s", error)
         finally:
             self._cleanup_mounts_compose_file()
+
+
+class DirectLHTBAgent(Terminus2):
+    """Run the selected model through Harbor's standard single-agent terminal loop."""
+
+    @staticmethod
+    def name() -> str:
+        return "direct-lhtb"
+
+    def __init__(
+        self,
+        logs_dir: Path,
+        model_name: str | None = None,
+        api_base: str | None = None,
+        **kwargs: Any,
+    ):
+        selected_model = (
+            model_name
+            or os.environ.get("DEFAULT_MODEL")
+            or "deepseek-v4-flash"
+        )
+        if "/" not in selected_model:
+            provider = "deepseek" if os.environ.get("DEEPSEEK_API_KEY") else "openai"
+            selected_model = f"{provider}/{selected_model}"
+        selected_api_base = (
+            api_base
+            or os.environ.get("DEEPSEEK_BASE_URL")
+            or os.environ.get("OPENAI_BASE_URL")
+            or os.environ.get("OPENAI_API_BASE")
+        )
+        super().__init__(
+            logs_dir=logs_dir,
+            model_name=selected_model,
+            api_base=selected_api_base,
+            **kwargs,
+        )
 
 
 class RoyLHTBAgent(BaseAgent):
@@ -236,7 +275,24 @@ class RoyLHTBAgent(BaseAgent):
 
         verifier_dir = self.logs_dir.parent / "verifier"
         sections: list[str] = []
-        for filename in VERIFIER_FEEDBACK_FILES:
+        preferred = list(VERIFIER_FEEDBACK_FILES)
+        discovered = (
+            sorted(
+                path.name
+                for path in verifier_dir.iterdir()
+                if path.is_file()
+                and path.name not in preferred
+                and re.search(
+                    r"(?:score|grade|reward|result|report|failure|error|pytest|test|install)",
+                    path.name,
+                    re.IGNORECASE,
+                )
+                and path.suffix.lower() in {".json", ".log", ".txt"}
+            )
+            if verifier_dir.is_dir()
+            else []
+        )
+        for filename in (*preferred, *discovered):
             path = verifier_dir / filename
             if not path.is_file():
                 continue
@@ -285,6 +341,8 @@ class RoyLHTBAgent(BaseAgent):
 
         limits = {
             "reward.txt": 512,
+            "scorecard.json": 16_000,
+            "grade.log": 16_000,
             "test-stdout.txt": 8_000,
             "pytest.log": 12_000,
             "install.log": 3_000,
@@ -305,14 +363,18 @@ class RoyLHTBAgent(BaseAgent):
         """Return the task's mounted verifier entrypoint after Harbor has exposed it."""
 
         local_tests = LHTB_TASKS_ROOT / self._task_name() / "tests"
+        if (local_tests / "test.sh").is_file():
+            return "bash .roy/official-verifier/test.sh"
+        if (local_tests / "grade.py").is_file():
+            return "python .roy/official-verifier/grade.py"
         if (local_tests / "test_outputs.py").is_file():
             return (
                 "python -m pytest -p no:cacheprovider -q "
                 ".roy/official-verifier/test_outputs.py"
             )
-        if (local_tests / "grade.py").is_file():
-            return "python .roy/official-verifier/grade.py"
         verifier_dir = self.logs_dir.parent / "verifier"
+        if (verifier_dir / "grade.log").is_file():
+            return "bash .roy/official-verifier/test.sh"
         if (verifier_dir / "pytest.log").is_file():
             return (
                 "python -m pytest -p no:cacheprovider -q "
@@ -461,11 +523,7 @@ class RoyLHTBAgent(BaseAgent):
             )
             local_verifier = self._local_verifier_command()
             if local_verifier:
-                mirrored_verifier = (
-                    ".roy/official-verifier/test_outputs.py"
-                    if "pytest" in local_verifier
-                    else ".roy/official-verifier/grade.py"
-                )
+                mirrored_verifier = local_verifier.split()[-1]
                 content += (
                     "\n\n## Required local repair verification\n\n"
                     "The official verifier entrypoint is mirrored read-only inside "

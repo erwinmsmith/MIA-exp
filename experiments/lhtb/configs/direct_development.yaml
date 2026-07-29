@@ -1,0 +1,29 @@
+job_name: lhtb-direct-development
+jobs_dir: ./jobs
+n_attempts: 1
+n_concurrent_trials: 1
+timeout_multiplier: 4.0
+
+environment:
+  import_path: mia_exp.benchmarks.lhtb:RoyLHTBDockerEnvironment
+  force_build: false
+  delete: true
+
+agents:
+  - import_path: mia_exp.benchmarks.lhtb:DirectLHTBAgent
+    model_name: deepseek/deepseek-v4-flash
+    kwargs:
+      parser_name: json
+      enable_summarize: true
+      proactive_summarization_threshold: 8000
+      record_terminal_session: true
+      llm_call_kwargs:
+        max_tokens: 8192
+        num_retries: 4
+
+datasets:
+  - path: ./benchmarks/LHTB/tasks
+    task_names:
+      - langchain-version-migration
+      - great-expectations-audit
+      - document-table-layout-reconstruction

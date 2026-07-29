@@ -12,11 +12,13 @@ from harbor.environments.base import ExecResult
 from harbor.models.agent.context import AgentContext
 
 from mia_exp.benchmarks.lhtb import (
+    DirectLHTBAgent,
     RoyLHTBAgent,
     RoyLHTBDockerEnvironment,
     _external_wall_clock_ms,
     _write_runtime_env_file,
 )
+from harbor.agents.terminus_2 import Terminus2
 
 
 class RuntimeEnvFileTests(unittest.TestCase):
@@ -47,6 +49,31 @@ class RuntimeEnvFileTests(unittest.TestCase):
             379_000,
         )
         self.assertIsNone(_external_wall_clock_ms("Initial benchmark round."))
+
+    def test_direct_agent_uses_selected_model_and_provider_base_url(self) -> None:
+        with (
+            patch.dict(
+                os.environ,
+                {
+                    "DEFAULT_MODEL": "deepseek-v4-flash",
+                    "DEEPSEEK_API_KEY": "test-key",
+                    "DEEPSEEK_BASE_URL": "https://example.invalid/v1",
+                },
+                clear=True,
+            ),
+            patch.object(Terminus2, "__init__", return_value=None) as init,
+        ):
+            DirectLHTBAgent(logs_dir=Path("/tmp/direct-agent"))
+
+        init.assert_called_once()
+        self.assertEqual(
+            init.call_args.kwargs["model_name"],
+            "deepseek/deepseek-v4-flash",
+        )
+        self.assertEqual(
+            init.call_args.kwargs["api_base"],
+            "https://example.invalid/v1",
+        )
 
 
 class DockerImageRetentionTests(unittest.IsolatedAsyncioTestCase):
@@ -225,6 +252,22 @@ class RoyLHTBSecretInjectionTests(unittest.IsolatedAsyncioTestCase):
                 "ImportError: cannot import name 'run_audit'",
                 encoding="utf-8",
             )
+            (verifier_dir / "scorecard.json").write_text(
+                json.dumps(
+                    {
+                        "reward": 0.25,
+                        "groups": {
+                            "public_api": {"fraction": 1.0},
+                            "hidden_behavior": {"fraction": 0.0},
+                        },
+                    }
+                ),
+                encoding="utf-8",
+            )
+            (verifier_dir / "grade.log").write_text(
+                "hidden_behavior: expected migrated output",
+                encoding="utf-8",
+            )
             (verifier_dir / "install.log").write_text(
                 "ERROR no matching distribution",
                 encoding="utf-8",
@@ -238,15 +281,16 @@ class RoyLHTBSecretInjectionTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("FAILED dependency gate", instruction)
         self.assertIn("langchain-community is unavailable", instruction)
         self.assertIn("ImportError: cannot import name 'run_audit'", instruction)
+        self.assertIn('"hidden_behavior": {"fraction": 0.0}', instruction)
+        self.assertIn("hidden_behavior: expected migrated output", instruction)
         self.assertIn("ERROR no matching distribution", instruction)
         self.assertIn("## Required local repair verification", instruction)
         self.assertIn(
-            ".roy/official-verifier/test_outputs.py",
+            ".roy/official-verifier/test.sh",
             instruction,
         )
         self.assertIn(
-            "python -m pytest -p no:cacheprovider -q "
-            ".roy/official-verifier/test_outputs.py",
+            "bash .roy/official-verifier/test.sh",
             instruction,
         )
 
@@ -347,8 +391,7 @@ class RoyLHTBSecretInjectionTests(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual(
             command,
-            "python -m pytest -p no:cacheprovider -q "
-            ".roy/official-verifier/test_outputs.py",
+            "bash .roy/official-verifier/test.sh",
         )
 
     async def test_truncated_harbor_trial_id_resolves_full_task_verifier(
