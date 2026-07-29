@@ -189,6 +189,40 @@ class SPPVerifierTests(unittest.TestCase):
         self.assertEqual(item["usage"]["modelCalls"], 2)
         self.assertIsNotNone(raw["repair"])
 
+    def test_resume_allows_a_subset_of_the_original_indices(self) -> None:
+        instance = load_instances("spp.trivia-creative-writing-n5")[0]
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "source"
+            output = root / "verifier"
+            (source / "raw").mkdir(parents=True)
+            for index in (0, 1):
+                (source / "raw" / f"{index:04d}.json").write_text(
+                    json.dumps({"finalAnswer": "A complete story."}),
+                    encoding="utf-8",
+                )
+            run_verifier(
+                "spp.trivia-creative-writing-n5",
+                source_run=source,
+                output_dir=output,
+                indices=[0, 1],
+                model="fake-model",
+                client=FakeClient(_judgment(instance["question_ids"])),  # type: ignore[arg-type]
+            )
+            run_verifier(
+                "spp.trivia-creative-writing-n5",
+                source_run=source,
+                output_dir=output,
+                indices=[0],
+                model="fake-model",
+                client=FakeClient(_judgment(instance["question_ids"])),  # type: ignore[arg-type]
+            )
+            records = [
+                json.loads(line)
+                for line in (output / "items.jsonl").read_text().splitlines()
+            ]
+        self.assertEqual(len(records), 2)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -474,9 +474,14 @@ def run_verifier(
     }
     if run_path.is_file():
         existing = json.loads(run_path.read_text(encoding="utf-8"))
-        for key in ("benchmarkId", "sourceRun", "model", "indices"):
+        for key in ("benchmarkId", "sourceRun", "model"):
             if existing.get(key) != run_identity[key]:
                 raise ValueError(f"existing verifier run has different {key}")
+        original_indices = existing.get("indices")
+        if not isinstance(original_indices, list) or any(
+            index not in original_indices for index in selected
+        ):
+            raise ValueError("selected indices are outside the existing verifier run")
     else:
         run_identity["startedAt"] = datetime.now(UTC).isoformat()
         run_path.write_text(
