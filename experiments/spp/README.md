@@ -115,3 +115,47 @@ the four benchmark summary scores rather than pooling their raw denominators.
 PYTHONPATH=src .venv/bin/python -m mia_exp.cli aggregate \
   results/spp/*/*/summary.json
 ```
+
+## Blind LLM story-quality verifier
+
+Trivia's official metric remains answer-alias recall. A separate blind verifier
+can evaluate semantic answer coverage, factual faithfulness, narrative coherence,
+answer integration, topic consistency, instruction compliance, and concision.
+It does not receive the generating method's name and does not replace the official
+score.
+
+Run one saved story first:
+
+```bash
+./scripts/run-spp-verifier.sh spp.trivia-creative-writing-n5 \
+  --source-run results/full-spp/<method>/spp.trivia-creative-writing-n5 \
+  --start 0 \
+  --limit 1 \
+  --model deepseek-v4-pro \
+  --output results/verifiers/deepseek-v4-pro/<method>/trivia-n5
+```
+
+Expand `--limit` to 100 only after the smoke result is valid. Existing completed
+items are skipped, so an interrupted verifier run can resume in the same output
+directory. The verifier writes:
+
+- `run.json`: source run, commits, judge model, selected indices, and fixed weights;
+- `items.jsonl`: official score, parsed multidimensional judgment, and judge usage;
+- `raw/<index>.json`: exact blind prompt, raw response, parsed judgment, and usage;
+- `summary.json`: mean quality score, semantic coverage, dimension means, failures,
+  and verifier-only token totals.
+
+The weighted quality score is:
+
+```text
+0.30 semantic answer coverage
++ 0.20 factual faithfulness
++ 0.15 narrative coherence
++ 0.15 answer integration
++ 0.08 topic consistency
++ 0.07 instruction compliance
++ 0.05 concision
+```
+
+Verifier usage is reported separately and must not be added to the solver's token
+usage when comparing agent efficiency.

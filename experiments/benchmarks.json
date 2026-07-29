@@ -88,7 +88,23 @@
         "earned": "trivia answers mentioned through any official alias",
         "possible": "trivia questions",
         "range": [0.0, 1.0]
-      }
+      },
+      "secondaryMetrics": [
+        {
+          "name": "llm_story_quality",
+          "judgeModel": "deepseek-v4-pro",
+          "range": [0.0, 1.0],
+          "dimensions": [
+            "semanticAnswerCoverage",
+            "factualFaithfulness",
+            "narrativeCoherence",
+            "answerIntegration",
+            "topicConsistency",
+            "instructionCompliance",
+            "concision"
+          ]
+        }
+      ]
     },
     {
       "id": "spp.trivia-creative-writing-n10",
@@ -110,7 +126,23 @@
         "earned": "trivia answers mentioned through any official alias",
         "possible": "trivia questions",
         "range": [0.0, 1.0]
-      }
+      },
+      "secondaryMetrics": [
+        {
+          "name": "llm_story_quality",
+          "judgeModel": "deepseek-v4-pro",
+          "range": [0.0, 1.0],
+          "dimensions": [
+            "semanticAnswerCoverage",
+            "factualFaithfulness",
+            "narrativeCoherence",
+            "answerIntegration",
+            "topicConsistency",
+            "instructionCompliance",
+            "concision"
+          ]
+        }
+      ]
     },
     {
       "id": "spp.codenames-collaborative",
