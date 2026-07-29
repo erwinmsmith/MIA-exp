@@ -111,7 +111,13 @@ class SPPVerifierTests(unittest.TestCase):
             )
             (root / "raw" / "0001").mkdir()
             (root / "raw" / "0001" / "roy.json").write_text(
-                json.dumps({"result": {"finalResponse": "Roy story"}}),
+                json.dumps(
+                    {
+                        "result": {
+                            "finalResponse": "Synthesis details\nFINAL_STORY: Roy story"
+                        }
+                    }
+                ),
                 encoding="utf-8",
             )
             self.assertEqual(load_story(root, 0)[0], "flat story")

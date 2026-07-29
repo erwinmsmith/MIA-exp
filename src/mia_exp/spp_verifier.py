@@ -13,7 +13,7 @@ from statistics import fmean
 from typing import Any, Iterable
 
 from .benchmarks.registry import REPO_ROOT, get_benchmark
-from .benchmarks.spp import load_instances
+from .benchmarks.spp import extract_story, load_instances
 from .evoagent_runner import (
     Completion,
     OpenAICompatibleClient,
@@ -288,14 +288,14 @@ def load_story(source_run: Path, index: int) -> tuple[str, Path]:
         payload = json.loads(flat.read_text(encoding="utf-8"))
         story = payload.get("finalAnswer") or payload.get("scoringResponse")
         if isinstance(story, str) and story.strip():
-            return story.strip(), flat
+            return extract_story(story), flat
     roy = source_run / "raw" / f"{index:04d}" / "roy.json"
     if roy.is_file():
         payload = json.loads(roy.read_text(encoding="utf-8"))
         result = payload.get("result")
         story = result.get("finalResponse") if isinstance(result, dict) else None
         if isinstance(story, str) and story.strip():
-            return story.strip(), roy
+            return extract_story(story), roy
     raise FileNotFoundError(f"no saved final story for item {index} in {source_run}")
 
 
