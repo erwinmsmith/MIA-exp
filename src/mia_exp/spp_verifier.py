@@ -269,6 +269,19 @@ def parse_verifier_response(
     }
 
 
+def render_json_repair_prompt(response: str) -> str:
+    """Ask the same judge to repair syntax without reconsidering the verdict."""
+
+    return f"""The following evaluator response was intended to be a JSON object but
+failed JSON parsing. Return the same evaluation as one strictly valid JSON object.
+Do not add markdown, commentary, or new substantive judgments. Escape every quote
+inside JSON strings.
+
+<invalid_evaluator_response>
+{response}
+</invalid_evaluator_response>"""
+
+
 def load_story(source_run: Path, index: int) -> tuple[str, Path]:
     flat = source_run / "raw" / f"{index:04d}.json"
     if flat.is_file():
@@ -324,17 +337,24 @@ def _aggregate_usage(records: list[dict[str, Any]]) -> dict[str, Any]:
     return totals
 
 
-def _completion_usage(completion: Completion) -> dict[str, Any]:
-    usage = completion.usage
+def _completion_usage(completions: Iterable[Completion]) -> dict[str, Any]:
+    entries = list(completions)
+    if not entries:
+        return {}
+    def total(key: str) -> int | float | None:
+        values = [entry.usage.get(key) for entry in entries]
+        present = [value for value in values if isinstance(value, (int, float))]
+        return sum(present) if present else None
+
     return {
-        "modelCalls": 1,
-        "inputTokens": usage.get("inputTokens"),
-        "outputTokens": usage.get("outputTokens"),
-        "totalTokens": usage.get("totalTokens"),
-        "cachedInputTokens": usage.get("cachedInputTokens"),
-        "thinkingTokens": usage.get("thinkingTokens"),
-        "transportAttempts": completion.transport_attempts,
-        "modelDurationSeconds": completion.duration_seconds,
+        "modelCalls": len(entries),
+        "inputTokens": total("inputTokens"),
+        "outputTokens": total("outputTokens"),
+        "totalTokens": total("totalTokens"),
+        "cachedInputTokens": total("cachedInputTokens"),
+        "thinkingTokens": total("thinkingTokens"),
+        "transportAttempts": sum(entry.transport_attempts for entry in entries),
+        "modelDurationSeconds": sum(entry.duration_seconds for entry in entries),
     }
 
 
@@ -480,13 +500,27 @@ def run_verifier(
             prompt = render_verifier_prompt(instances[index], story)
             raw_path = output_dir / "raw" / f"{index:04d}.json"
             completion: Completion | None = None
+            repair_completion: Completion | None = None
+            repair_prompt: str | None = None
             try:
                 completion = client.complete(prompt)
-                judgment = parse_verifier_response(
-                    completion.content,
-                    expected_question_ids=list(instances[index]["question_ids"]),
+                try:
+                    judgment = parse_verifier_response(
+                        completion.content,
+                        expected_question_ids=list(instances[index]["question_ids"]),
+                    )
+                except ValueError:
+                    repair_prompt = render_json_repair_prompt(completion.content)
+                    repair_completion = client.complete(repair_prompt)
+                    judgment = parse_verifier_response(
+                        repair_completion.content,
+                        expected_question_ids=list(instances[index]["question_ids"]),
+                    )
+                usage = _completion_usage(
+                    entry
+                    for entry in (completion, repair_completion)
+                    if entry is not None
                 )
-                usage = _completion_usage(completion)
                 raw_payload = {
                     "schemaVersion": 1,
                     "benchmarkId": benchmark_id,
@@ -495,6 +529,14 @@ def run_verifier(
                     "storySha256": hashlib.sha256(story.encode()).hexdigest(),
                     "prompt": prompt,
                     "response": completion.content,
+                    "repair": (
+                        {
+                            "prompt": repair_prompt,
+                            "response": repair_completion.content,
+                        }
+                        if repair_completion
+                        else None
+                    ),
                     "judgment": judgment,
                     "usage": usage,
                 }
@@ -512,7 +554,11 @@ def run_verifier(
                     "completedAt": datetime.now(UTC).isoformat(),
                 }
             except Exception as error:
-                usage = _completion_usage(completion) if completion else {}
+                usage = _completion_usage(
+                    entry
+                    for entry in (completion, repair_completion)
+                    if entry is not None
+                )
                 raw_payload = {
                     "schemaVersion": 1,
                     "benchmarkId": benchmark_id,
@@ -521,6 +567,14 @@ def run_verifier(
                     "storySha256": hashlib.sha256(story.encode()).hexdigest(),
                     "prompt": prompt,
                     "response": completion.content if completion else None,
+                    "repair": (
+                        {
+                            "prompt": repair_prompt,
+                            "response": repair_completion.content,
+                        }
+                        if repair_completion
+                        else None
+                    ),
                     "usage": usage,
                     "error": f"{type(error).__name__}: {error}",
                 }

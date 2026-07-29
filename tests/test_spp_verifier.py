@@ -145,6 +145,50 @@ class SPPVerifierTests(unittest.TestCase):
         self.assertEqual(summary["judgeModel"], "fake-model")
         self.assertNotIn("A complete story.", json.dumps(run))
 
+    def test_run_repairs_one_malformed_json_response(self) -> None:
+        instance = load_instances("spp.trivia-creative-writing-n5")[0]
+
+        class RepairClient(FakeClient):
+            def __init__(self) -> None:
+                self.responses = iter(["{not valid json", _judgment(instance["question_ids"])])
+
+            def complete(self, _prompt: str) -> Completion:
+                return Completion(
+                    content=next(self.responses),
+                    usage={
+                        "inputTokens": 10,
+                        "outputTokens": 5,
+                        "totalTokens": 15,
+                        "cachedInputTokens": None,
+                        "thinkingTokens": None,
+                    },
+                    duration_seconds=0.1,
+                    transport_attempts=1,
+                )
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "source"
+            output = root / "verifier"
+            (source / "raw").mkdir(parents=True)
+            (source / "raw" / "0000.json").write_text(
+                json.dumps({"finalAnswer": "A complete story."}),
+                encoding="utf-8",
+            )
+            run_verifier(
+                "spp.trivia-creative-writing-n5",
+                source_run=source,
+                output_dir=output,
+                indices=[0],
+                model="fake-model",
+                client=RepairClient(),  # type: ignore[arg-type]
+            )
+            item = json.loads((output / "items.jsonl").read_text())
+            raw = json.loads((output / "raw" / "0000.json").read_text())
+        self.assertEqual(item["status"], "completed")
+        self.assertEqual(item["usage"]["modelCalls"], 2)
+        self.assertIsNotNone(raw["repair"])
+
 
 if __name__ == "__main__":
     unittest.main()
