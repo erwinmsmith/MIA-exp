@@ -99,6 +99,24 @@ name, stage name, spelling, punctuation, or Unicode variant may be supported eve
 when absent from the reference aliases. Conversely, penalize false surrounding
 claims, dates, identities, or causal statements even if an answer string appears.
 
+The benchmark asks for one short, coherent story that naturally incorporates the
+answers. Apply these anchors strictly:
+- factualFaithfulness: 1 means major falsehoods; 3 means mostly correct with one
+  questionable or misleading claim; 5 means every material claim is accurate.
+- narrativeCoherence: 1 means an answer dump or fragments; 3 means a recognizable
+  story with mechanical transitions; 5 means sustained causal and character logic.
+- answerIntegration: 1 means a list, parenthetical answer labels, or meta-trivia;
+  3 means answers appear in scenes/dialogue but remain mostly incidental; 5 means
+  answers naturally affect the plot, characters, or central motif.
+- topicConsistency: 1 means the requested topic is superficial or absent; 3 means
+  recognizable but generic use; 5 means the topic materially shapes the story.
+- instructionCompliance: 1 means it lists questions/answers or explains the task;
+  3 means minor format leakage; 5 means only the requested story is presented.
+- concision: 1 means severely bloated/repetitive; 3 means some avoidable material;
+  5 means every substantial passage serves the task.
+Use the full scale. A score of 5 is exceptional, not the default for an output
+without an obvious failure. Do not reward length by itself.
+
 Task topic: {instance["topic"]}
 Questions and compact reference-answer candidates:
 {json.dumps(references, ensure_ascii=False, indent=2)}
@@ -125,14 +143,22 @@ Return exactly one JSON object and no markdown. Use this schema:
     "instructionCompliance": 1,
     "concision": 1
   }},
+  "dimensionReasons": {{
+    "factualFaithfulness": "brief reason tied to the anchors",
+    "narrativeCoherence": "brief reason tied to the anchors",
+    "answerIntegration": "brief reason tied to the anchors",
+    "topicConsistency": "brief reason tied to the anchors",
+    "instructionCompliance": "brief reason tied to the anchors",
+    "concision": "brief reason tied to the anchors"
+  }},
   "confidence": 0.0,
   "qualitySummary": "brief overall assessment",
   "referenceIssues": ["any suspected reference defect or ambiguity"]
 }}
 
 Every supplied questionId must appear exactly once and in the original order.
-Dimension scores are integers from 1 (very poor) to 5 (excellent). Confidence is
-between 0 and 1. Do not reward length by itself."""
+Dimension scores are integers from 1 (very poor) to 5 (exceptional). Confidence
+is between 0 and 1."""
 
 
 def _decode_json_object(content: str) -> dict[str, Any]:
@@ -199,6 +225,15 @@ def parse_verifier_response(
         if not isinstance(value, int) or isinstance(value, bool) or not 1 <= value <= 5:
             raise ValueError(f"{name} must be an integer in [1, 5]")
         normalized_dimensions[name] = value
+    dimension_reasons = payload.get("dimensionReasons")
+    if not isinstance(dimension_reasons, dict):
+        raise ValueError("dimensionReasons must be an object")
+    normalized_reasons: dict[str, str] = {}
+    for name in DIMENSIONS:
+        reason = dimension_reasons.get(name)
+        if not isinstance(reason, str) or not reason.strip():
+            raise ValueError(f"dimensionReasons.{name} must be a non-empty string")
+        normalized_reasons[name] = reason.strip()
 
     confidence = payload.get("confidence")
     if not isinstance(confidence, (int, float)) or isinstance(confidence, bool):
@@ -223,6 +258,7 @@ def parse_verifier_response(
     return {
         "semanticAnswerCoverage": semantic_coverage,
         "dimensions": normalized_dimensions,
+        "dimensionReasons": normalized_reasons,
         "normalizedDimensions": normalized_scores,
         "overallScore": overall_score,
         "confidence": confidence,
