@@ -384,6 +384,22 @@ class RoyLHTBAgent(BaseAgent):
             return "python .roy/official-verifier/grade.py"
         return None
 
+    def _local_verifier_contract_paths(self) -> list[str]:
+        """Return assertion sources separately from the executable wrapper."""
+
+        local_tests = LHTB_TASKS_ROOT / self._task_name() / "tests"
+        preferred = ("test_outputs.py", "grade.py")
+        contracts = [
+            f".roy/official-verifier/{filename}"
+            for filename in preferred
+            if (local_tests / filename).is_file()
+        ]
+        if contracts:
+            return contracts
+        if (local_tests / "test.sh").is_file():
+            return [".roy/official-verifier/test.sh"]
+        return []
+
     def _task_name(self) -> str:
         """Resolve the full task name without relying on Harbor's truncated trial id."""
 
@@ -523,13 +539,16 @@ class RoyLHTBAgent(BaseAgent):
             )
             local_verifier = self._local_verifier_command()
             if local_verifier:
-                mirrored_verifier = local_verifier.split()[-1]
+                contract_paths = self._local_verifier_contract_paths()
+                mirrored_contracts = ", ".join(
+                    f"`{path}`" for path in contract_paths
+                ) or f"`{local_verifier.split()[-1]}`"
                 content += (
                     "\n\n## Required local repair verification\n\n"
-                    "The official verifier entrypoint is mirrored read-only inside "
-                    "the workspace at "
-                    f"`{mirrored_verifier}`. Read the relevant assertions from "
-                    "that exact file before making a structural rewrite. "
+                    "The official verifier assertion source is mirrored read-only "
+                    "inside the workspace at "
+                    f"{mirrored_contracts}. Read the relevant assertions from "
+                    "those exact files before making a structural rewrite. "
                     "After each concrete repair, run this command inside the task "
                     "container and use its newest failures for the next repair. "
                     "Do not wait for another outer continuation to discover whether "

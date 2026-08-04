@@ -394,6 +394,20 @@ class RoyLHTBSecretInjectionTests(unittest.IsolatedAsyncioTestCase):
             "bash .roy/official-verifier/test.sh",
         )
 
+    async def test_local_verifier_contract_uses_assertion_source(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            trial_dir = Path(directory) / "langchain-version-migration__trial"
+            logs_dir = trial_dir / "agent"
+            logs_dir.mkdir(parents=True)
+            agent = RoyLHTBAgent(logs_dir=logs_dir)
+
+            contracts = agent._local_verifier_contract_paths()
+
+        self.assertEqual(
+            contracts,
+            [".roy/official-verifier/test_outputs.py"],
+        )
+
     async def test_truncated_harbor_trial_id_resolves_full_task_verifier(
         self,
     ) -> None:
