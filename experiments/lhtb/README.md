@@ -77,6 +77,29 @@ make run-lhtb-direct
 environment. The committed development config pins `deepseek-v4-flash` so the
 Roy and direct runs can use the same model.
 
+For the complete 46-task direct baseline, use the committed full-suite config. It
+pins `deepseek/deepseek-v4-flash`, runs one task at a time, and writes the raw
+Harbor artifacts below `jobs/lhtb-direct-all-deepseek-v4-flash/`:
+
+```bash
+LHTB_DIRECT_CONFIG="$PWD/experiments/lhtb/configs/direct_all_development.yaml" \
+./scripts/run-lhtb-direct.sh
+```
+
+Harbor checkpoints each trial. If the process or Docker Desktop is interrupted,
+resume the same job directory instead of starting a new job; completed trials are
+retained and only incomplete trials are rerun:
+
+```bash
+.venv/bin/harbor job resume \
+  -p "$PWD/jobs/lhtb-direct-all-deepseek-v4-flash"
+```
+
+The job's `config.json`, per-trial `result.json`, verifier output, trajectory, and
+usage files are the durable record. A failed-but-finalized trial is intentionally
+kept as a direct baseline result; use its task directory explicitly for a later
+retest rather than silently overwriting the baseline.
+
 The pinned LHTB revision contains 46 tasks. `roy_all_development.yaml` is the
 complete task manifest, while `roy_broad_pass5.yaml` is a deterministic
 cross-domain sample of 10 tasks with five attempts each. Both use sequential
