@@ -378,6 +378,24 @@ class RoyLHTBSecretInjectionTests(unittest.IsolatedAsyncioTestCase):
             mkdir_command,
         )
 
+    async def test_runtime_state_is_made_downloadable_after_execution(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            trial_dir = Path(directory) / "langchain-version-migration__trial"
+            logs_dir = trial_dir / "agent"
+            logs_dir.mkdir(parents=True)
+            agent = RoyLHTBAgent(logs_dir=logs_dir)
+            environment = FakeEnvironment()
+
+            await agent.run("Continue the migration.", environment, AgentContext())  # type: ignore[arg-type]
+
+        permission_command = next(
+            command
+            for command, _kwargs in environment.exec_calls
+            if command.startswith("find /app/.roy -type d")
+        )
+        self.assertIn("chmod u+rwx", permission_command)
+        self.assertIn("chmod u+rw", permission_command)
+
     async def test_local_verifier_command_uses_checked_out_task_entrypoint(
         self,
     ) -> None:

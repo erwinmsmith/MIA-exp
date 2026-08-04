@@ -639,6 +639,21 @@ class RoyLHTBAgent(BaseAgent):
                 result_download_error = error
         finally:
             try:
+                prepared_state = await environment.exec(
+                    command=(
+                        f"find {shlex.quote(f'{self.workspace}/.roy')} -type d "
+                        "-exec chmod u+rwx {} +; "
+                        f"find {shlex.quote(f'{self.workspace}/.roy')} -type f "
+                        "-exec chmod u+rw {} +"
+                    ),
+                    user="root",
+                    timeout_sec=30,
+                )
+                if prepared_state.return_code != 0:
+                    self.logger.warning(
+                        "Could not prepare Roy state permissions for download: %s",
+                        prepared_state.stderr or prepared_state.stdout,
+                    )
                 await environment.download_dir(
                     f"{self.workspace}/.roy",
                     self.logs_dir / f"roy-state-{round_id}",
